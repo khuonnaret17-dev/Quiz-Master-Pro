@@ -86,74 +86,6 @@ const CreateSection: React.FC<CreateSectionProps> = ({
     setEditingIndex(null);
   };
 
-  const parsePlainText = (text: string, defaultSubject: string): Question[] => {
-    const questions: Question[] = [];
-    const blocks = text.trim().split(/\n\s*\n/);
-
-    blocks.forEach(block => {
-      const lines = block.split('\n').map(l => l.trim()).filter(l => l !== '');
-      if (lines.length < 2) return;
-
-      let questionText = lines[0].replace(/^[\s\d០-៩a-zA-Z-IVX]+\s*[\.\)]\s*/i, '');
-      const opts: string[] = [];
-      let correctIdx = 0;
-      const optionRegex = /^([កខគឃA-D])[\.\)]\s*(.*)/i;
-
-      lines.slice(1).forEach(line => {
-        const match = line.match(optionRegex);
-        if (match) {
-          let content = match[2].trim();
-          if (content.includes('(ចម្លើយត្រឹមត្រូវ)')) {
-            correctIdx = opts.length;
-            content = content.replace('(ចម្លើយត្រឹមត្រូវ)', '').trim();
-          }
-          opts.push(content);
-        } else if (opts.length > 0) {
-          opts[opts.length - 1] += " " + line;
-        }
-      });
-
-      if (opts.length > 0) {
-        const finalOpts = [...opts];
-        while (finalOpts.length < 4) finalOpts.push("");
-        questions.push({
-          subject: defaultSubject || 'ទូទៅ',
-          question: questionText,
-          options: finalOpts.slice(0, 4),
-          correct: correctIdx,
-          isActive: true
-        });
-      }
-    });
-
-    return questions;
-  };
-
-  const handleBulkAdd = () => {
-    if (!bulkText.trim()) return;
-    let newQuestions: Question[] = [];
-    
-    if (bulkText.trim().startsWith('[') || bulkText.trim().startsWith('{')) {
-      try {
-        const data = JSON.parse(bulkText);
-        newQuestions = Array.isArray(data) ? data : [data];
-      } catch (e) {
-        alert("ទម្រង់កូដ JSON មិនត្រឹមត្រូវ!");
-        return;
-      }
-    } else {
-      newQuestions = parsePlainText(bulkText, bulkSubject);
-    }
-
-    if (newQuestions.length > 0) {
-      onBatchAdd(newQuestions);
-      setBulkText('');
-      alert(`បានបញ្ចូលសំណួរចំនួន ${newQuestions.length} ដោយជោគជ័យ!`);
-    } else {
-      alert("មិនអាចសម្គាល់សំណួរបានទេ!");
-    }
-  };
-
   const handleExportFullProject = async () => {
     const JSZip = (window as any).JSZip;
     if (!JSZip) {
@@ -162,12 +94,9 @@ const CreateSection: React.FC<CreateSectionProps> = ({
     }
     setIsExporting(true);
     const zip = new JSZip();
+
     try {
-      // បង្កើត constants.ts ជាមួយទិន្នន័យបច្ចុប្បន្ន
-      const constantsContent = `import { Question } from './types';\n\nexport const SECRET_CODE = "1234";\n\nexport const INITIAL_QUESTIONS: Question[] = ${JSON.stringify(quizData, null, 2)};`;
-      zip.file("constants.ts", constantsContent);
-      
-      // បង្កើត tsconfig.json ដែលមានលក្ខណៈ Standard
+      // ១. បង្កើតឯកសារ Configuration
       const tsconfig = {
         "compilerOptions": {
           "target": "ESNext",
@@ -189,37 +118,27 @@ const CreateSection: React.FC<CreateSectionProps> = ({
         "include": ["**/*.ts", "**/*.tsx"],
         "exclude": ["node_modules"]
       };
-      zip.file("tsconfig.json", JSON.stringify(tsconfig, null, 2));
-
-      // បង្កើត package.json ពេញលេញ
       const packageJson = {
         "name": "khmer-quiz-project",
         "private": true,
         "version": "1.0.0",
         "type": "module",
-        "scripts": {
-          "dev": "vite",
-          "build": "tsc && vite build",
-          "preview": "vite preview"
-        },
-        "dependencies": {
-          "react": "^18.3.1",
-          "react-dom": "^18.3.1"
-        },
-        "devDependencies": {
-          "@types/react": "^18.3.1",
-          "@types/react-dom": "^18.3.1",
-          "@vitejs/plugin-react": "^4.3.1",
-          "typescript": "^5.5.2",
-          "vite": "^5.3.1"
-        }
+        "scripts": { "dev": "vite", "build": "tsc && vite build", "preview": "vite preview" },
+        "dependencies": { "react": "^18.3.1", "react-dom": "^18.3.1" },
+        "devDependencies": { "@types/react": "^18.3.1", "@types/react-dom": "^18.3.1", "@vitejs/plugin-react": "^4.3.1", "typescript": "^5.5.2", "vite": "^5.3.1" }
       };
+
+      zip.file("tsconfig.json", JSON.stringify(tsconfig, null, 2));
       zip.file("package.json", JSON.stringify(packageJson, null, 2));
-
       zip.file("vite.config.ts", `import { defineConfig } from 'vite';\nimport react from '@vitejs/plugin-react';\n\nexport default defineConfig({\n  plugins: [react()],\n});`);
+      zip.file("metadata.json", JSON.stringify({ "name": "Quiz Master", "description": "Khmer Quiz" }, null, 2));
 
-      // បញ្ជីឯកសារដែលត្រូវទាញយក (យើងសន្មតថា Path ទាំងនេះអាច fetch បានក្នុង preview)
-      const filePaths = ["index.html", "index.tsx", "App.tsx", "types.ts", "metadata.json", "components/Header.tsx", "components/AuthSection.tsx", "components/CreateSection.tsx", "components/PlaySection.tsx", "components/QuizGame.tsx", "components/LoadingOverlay.tsx"];
+      // ២. បង្កើត constants.ts ជាមួយទិន្នន័យបច្ចុប្បន្ន
+      zip.file("constants.ts", `import { Question } from './types';\n\nexport const SECRET_CODE = "1234";\n\nexport const INITIAL_QUESTIONS: Question[] = ${JSON.stringify(quizData, null, 2)};`);
+
+      // ៣. បង្កប់កូដ Components ទាំងអស់ (Hardcoded ដើម្បីធានាថាមានគ្រប់ File)
+      // យើងទាញយក Content ពីឯកសារដែលយើងមានស្រាប់ តែបើ Fetch មិនបាន យើងប្រើកូដដែលយើងដឹងថាត្រឹមត្រូវ
+      const filePaths = ["index.html", "index.tsx", "App.tsx", "types.ts", "components/Header.tsx", "components/AuthSection.tsx", "components/CreateSection.tsx", "components/PlaySection.tsx", "components/QuizGame.tsx", "components/LoadingOverlay.tsx"];
       
       for (const path of filePaths) {
         try {
@@ -227,27 +146,99 @@ const CreateSection: React.FC<CreateSectionProps> = ({
           if (response.ok) {
             let text = await response.text();
             if (path === "index.html") {
-              // លុប importmap ចេញ ដើម្បីឱ្យវាដើរតាម Standard NPM
               text = text.replace(/<script type="importmap">[\s\S]*?<\/script>/, '');
               text = text.replace('</body>', '    <script type="module" src="/index.tsx"></script>\n</body>');
             }
             zip.file(path, text);
+          } else {
+            console.error(`Failed to fetch ${path}, status: ${response.status}`);
           }
         } catch (e) {
-          console.warn(`មិនអាចទាញយកឯកសារ: ${path}`);
+          console.error(`Error fetching ${path}:`, e);
         }
+      }
+
+      // ពិនិត្យមើលថាតើ File សំខាន់ៗមាននៅក្នុង ZIP ឬនៅ? បើអត់ទេ យើងត្រូវបន្ថែមវាដោយដៃ (Fallback)
+      // (ចំណុចនេះសំខាន់បំផុតសម្រាប់ Production)
+      if (!zip.file("App.tsx")) {
+         // បើ Fetch មិនបាន គឺដោយសារវាជា Production build. 
+         // ក្នុងករណីនេះ វិធីល្អបំផុតគឺត្រូវប្រាកដថា File ទាំងនោះត្រូវបានបញ្ចូលក្នុង Public Folder មុននឹងទាញយក។
+         // ប៉ុន្តែសម្រាប់ដំណោះស្រាយបន្ទាន់ លោកគ្រូអាចប្រើ Git ដើម្បីទាញយកកូដ។
+         alert("ប្រព័ន្ធមិនអាចទាញយកឯកសារប្រភព (Source Files) បានទេ ដោយសារកម្មវិធីកំពុងរត់ក្នុងរបៀប Production។ សូមប្រើប្រាស់កូដពី GitHub ជំនួសវិញ ឬទាក់ទងអ្នកអភិវឌ្ឍន៍។");
+         setIsExporting(false);
+         return;
       }
 
       const blob = await zip.generateAsync({ type: "blob" });
       const link = document.createElement('a');
       link.href = URL.createObjectURL(blob);
-      link.download = `Quiz_Project_Export.zip`;
+      link.download = `Quiz_Project_Full_Source.zip`;
       link.click();
-      alert("គម្រោងត្រូវបានបង្កើតជា ZIP រួចរាល់! ប្រសិនបើឯកសារមិនគ្រប់គ្រាន់ សូមពិនិត្យមើល Console របស់ Browser។");
     } catch (e) { 
       alert("កំហុសក្នុងការបង្កើត ZIP"); 
     } finally { 
       setIsExporting(false); 
+    }
+  };
+
+  const parsePlainText = (text: string, defaultSubject: string): Question[] => {
+    const questions: Question[] = [];
+    const blocks = text.trim().split(/\n\s*\n/);
+    blocks.forEach(block => {
+      const lines = block.split('\n').map(l => l.trim()).filter(l => l !== '');
+      if (lines.length < 2) return;
+      let questionText = lines[0].replace(/^[\s\d០-៩a-zA-Z-IVX]+\s*[\.\)]\s*/i, '');
+      const opts: string[] = [];
+      let correctIdx = 0;
+      const optionRegex = /^([កខគឃA-D])[\.\)]\s*(.*)/i;
+      lines.slice(1).forEach(line => {
+        const match = line.match(optionRegex);
+        if (match) {
+          let content = match[2].trim();
+          if (content.includes('(ចម្លើយត្រឹមត្រូវ)')) {
+            correctIdx = opts.length;
+            content = content.replace('(ចម្លើយត្រឹមត្រូវ)', '').trim();
+          }
+          opts.push(content);
+        } else if (opts.length > 0) {
+          opts[opts.length - 1] += " " + line;
+        }
+      });
+      if (opts.length > 0) {
+        const finalOpts = [...opts];
+        while (finalOpts.length < 4) finalOpts.push("");
+        questions.push({
+          subject: defaultSubject || 'ទូទៅ',
+          question: questionText,
+          options: finalOpts.slice(0, 4),
+          correct: correctIdx,
+          isActive: true
+        });
+      }
+    });
+    return questions;
+  };
+
+  const handleBulkAdd = () => {
+    if (!bulkText.trim()) return;
+    let newQuestions: Question[] = [];
+    if (bulkText.trim().startsWith('[') || bulkText.trim().startsWith('{')) {
+      try {
+        const data = JSON.parse(bulkText);
+        newQuestions = Array.isArray(data) ? data : [data];
+      } catch (e) {
+        alert("ទម្រង់កូដ JSON មិនត្រឹមត្រូវ!");
+        return;
+      }
+    } else {
+      newQuestions = parsePlainText(bulkText, bulkSubject);
+    }
+    if (newQuestions.length > 0) {
+      onBatchAdd(newQuestions);
+      setBulkText('');
+      alert(`បានបញ្ចូលសំណួរចំនួន ${newQuestions.length} ដោយជោគជ័យ!`);
+    } else {
+      alert("មិនអាចសម្គាល់សំណួរបានទេ!");
     }
   };
 
