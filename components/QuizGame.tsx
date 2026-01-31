@@ -27,7 +27,6 @@ const QuizGame: React.FC<QuizGameProps> = ({ subject, partIndex, type, allSubjec
 
   const [isMuted, setIsMuted] = useState(false);
   const [shakeIndex, setShakeIndex] = useState<number | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
   const correctAudioRef = useRef<HTMLAudioElement | null>(null);
   const wrongAudioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -56,15 +55,6 @@ const QuizGame: React.FC<QuizGameProps> = ({ subject, partIndex, type, allSubjec
     }
     return subset;
   }, [allSubjectQuestions, partIndex, type]);
-
-  // បន្ថែម Logic ស្វែងរកសម្រាប់ផ្នែក Short Answer
-  const filteredShortQuestions = useMemo(() => {
-    if (type !== 'short' || !searchQuery.trim()) return partQuestions;
-    return partQuestions.filter(q => 
-      q.question.toLowerCase().includes(searchQuery.toLowerCase()) || 
-      (q.answer && q.answer.toLowerCase().includes(searchQuery.toLowerCase()))
-    );
-  }, [partQuestions, searchQuery, type]);
 
   const [state, setState] = useState<QuizState>({
     currentQuestionIndex: 0,
@@ -120,54 +110,29 @@ const QuizGame: React.FC<QuizGameProps> = ({ subject, partIndex, type, allSubjec
   if (type === 'short') {
     return (
       <div className="animate-fadeIn space-y-6 pb-20">
-        <div className="glass-card rounded-[2.5rem] p-6 md:p-8 flex flex-col gap-6 border border-white/50 sticky top-4 z-20 shadow-xl">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <button onClick={onExit} className="w-12 h-12 flex items-center justify-center bg-maroon/5 text-maroon rounded-2xl hover:bg-maroon hover:text-white transition-all shadow-sm">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M15 19l-7-7 7-7" /></svg>
-              </button>
-              <div>
-                <h2 className="text-xl md:text-2xl font-black heading-kh text-maroon leading-tight">{subject}</h2>
-                <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">ភាគទី {toKhmerNumeral(partIndex + 1)} - កម្រងសំណួរចម្លើយ</p>
-              </div>
-            </div>
-            <div className="hidden sm:block bg-maroon text-white px-5 py-2.5 rounded-full font-black text-xs uppercase shadow-lg shadow-maroon/20">
-              សរុប៖ {toKhmerNumeral(partQuestions.length)} សំណួរ
+        {/* Header - Now scrolls with content (Removed sticky and top-4) */}
+        <div className="glass-card rounded-[2.5rem] p-6 md:p-8 flex items-center justify-between border border-white/50 shadow-xl">
+          <div className="flex items-center gap-4">
+            <button onClick={onExit} className="w-12 h-12 flex items-center justify-center bg-maroon/5 text-maroon rounded-2xl hover:bg-maroon hover:text-white transition-all shadow-sm">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M15 19l-7-7 7-7" /></svg>
+            </button>
+            <div>
+              <h2 className="text-xl md:text-2xl font-black heading-kh text-maroon leading-tight">{subject}</h2>
+              <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">ភាគទី {toKhmerNumeral(partIndex + 1)} - កម្រងសំណួរចម្លើយ</p>
             </div>
           </div>
-
-          {/* Search Bar UI */}
-          <div className="relative group">
-            <input 
-              type="text" 
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="ស្វែងរកសំណួរ ឬចម្លើយក្នុងភាគនេះ..." 
-              className="w-full pl-14 pr-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-2 focus:ring-maroon focus:bg-white transition-all small-kh text-sm shadow-inner"
-            />
-            <div className="absolute left-5 top-4 text-maroon/30 group-focus-within:text-maroon transition-colors">
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-            </div>
-            {searchQuery && (
-              <button 
-                onClick={() => setSearchQuery('')}
-                className="absolute right-4 top-4 text-gray-400 hover:text-maroon transition-colors"
-              >
-                ✕
-              </button>
-            )}
+          <div className="hidden sm:block bg-maroon text-white px-5 py-2.5 rounded-full font-black text-xs uppercase shadow-lg shadow-maroon/20">
+            សរុប៖ {toKhmerNumeral(partQuestions.length)} សំណួរ
           </div>
         </div>
 
         <div className="space-y-8">
-          {filteredShortQuestions.length > 0 ? (
-            filteredShortQuestions.map((q, idx) => (
+          {partQuestions.length > 0 ? (
+            partQuestions.map((q, idx) => (
               <div key={idx} className="glass-card rounded-[2.5rem] p-8 md:p-12 border border-white/60 shadow-xl transition-all hover:shadow-2xl animate-fadeIn">
                 <div className="flex gap-2 items-start mb-6">
                   <span className="text-xl md:text-2xl font-black heading-kh text-maroon shrink-0">
-                    {toKhmerNumeral(partIndex * 10 + partQuestions.indexOf(q) + 1)}.
+                    {toKhmerNumeral(partIndex * 10 + idx + 1)}.
                   </span>
                   <h3 className="text-xl md:text-2xl font-black heading-kh text-maroon leading-relaxed">
                     {q.question}
@@ -176,7 +141,7 @@ const QuizGame: React.FC<QuizGameProps> = ({ subject, partIndex, type, allSubjec
                 <div className="bg-green-50/40 border-l-8 border-green-500 rounded-r-[2rem] p-6 md:p-8 relative overflow-hidden">
                   <div className="flex flex-col md:flex-row gap-2">
                     <span className="shrink-0 font-black text-green-700 heading-kh text-lg md:text-xl">ចម្លើយ ៖</span>
-                    <div className="flex-1 text-gray-800 leading-loose small-kh font-medium text-lg md:text-xl whitespace-pre-wrap">
+                    <div className="flex-1 text-gray-800 line-height-relaxed small-kh font-medium text-lg md:text-xl whitespace-pre-wrap">
                       {q.answer}
                     </div>
                   </div>
@@ -185,32 +150,30 @@ const QuizGame: React.FC<QuizGameProps> = ({ subject, partIndex, type, allSubjec
             ))
           ) : (
             <div className="glass-card rounded-[2.5rem] py-20 text-center border-dashed border-2 border-gray-200">
-              <div className="text-6xl mb-4 opacity-20">🔍</div>
-              <p className="text-gray-400 small-kh italic">រកមិនឃើញសំណួរដែលត្រូវនឹងការស្វែងរករបស់អ្នកឡើយ</p>
+              <div className="text-6xl mb-4 opacity-20">📭</div>
+              <p className="text-gray-400 small-kh italic">មិនទាន់មានសំណួរក្នុងភាគនេះឡើយ</p>
             </div>
           )}
 
           {/* Part Selection Menu for Short Answer */}
-          {!searchQuery && (
-            <div className="glass-card rounded-[2.5rem] p-8 mt-12 border border-white/60 shadow-xl">
-              <h3 className="text-center text-maroon font-black heading-kh mb-6">ជ្រើសរើសភាគផ្សេងទៀត</h3>
-              <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-3">
-                {Array.from({ length: totalParts }).map((_, i) => (
-                  <button 
-                    key={i} 
-                    disabled={i === partIndex}
-                    onClick={() => {
-                      onStartNextPart && onStartNextPart(i);
-                      window.scrollTo({ top: 0, behavior: 'smooth' });
-                    }}
-                    className={`py-3 rounded-xl font-black text-xs transition-all ${i === partIndex ? 'bg-maroon text-white shadow-inner opacity-50' : 'bg-maroon/5 text-maroon hover:bg-maroon hover:text-white shadow-sm'}`}
-                  >
-                    ភាគ {toKhmerNumeral(i + 1)}
-                  </button>
-                ))}
-              </div>
+          <div className="glass-card rounded-[2.5rem] p-8 mt-12 border border-white/60 shadow-xl">
+            <h3 className="text-center text-maroon font-black heading-kh mb-6">ជ្រើសរើសភាគផ្សេងទៀត</h3>
+            <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-3">
+              {Array.from({ length: totalParts }).map((_, i) => (
+                <button 
+                  key={i} 
+                  disabled={i === partIndex}
+                  onClick={() => {
+                    onStartNextPart && onStartNextPart(i);
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                  className={`py-3 rounded-xl font-black text-xs transition-all ${i === partIndex ? 'bg-maroon text-white shadow-inner opacity-50' : 'bg-maroon/5 text-maroon hover:bg-maroon hover:text-white shadow-sm'}`}
+                >
+                  ភាគ {toKhmerNumeral(i + 1)}
+                </button>
+              ))}
             </div>
-          )}
+          </div>
 
           <div className="flex justify-center gap-4 pt-10">
             <button onClick={onExit} className="bg-white border-2 border-maroon text-maroon font-black px-12 py-5 rounded-[2.5rem] shadow-xl hover:bg-maroon hover:text-white transition-all heading-kh text-xl">
