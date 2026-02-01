@@ -1,6 +1,6 @@
 
 import * as React from 'react';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Question, AppMode, SelectedQuizInfo, UserRole } from './types';
 import { INITIAL_QUESTIONS, SECRET_CODE } from './constants';
 import Header from './components/Header';
@@ -17,46 +17,69 @@ const App: React.FC = () => {
   const [activeQuiz, setActiveQuiz] = useState<SelectedQuizInfo | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
   const [isCloudConnected, setIsCloudConnected] = useState<boolean | 'error'>(false);
+  const isListeningRef = useRef(false);
 
-  // មុខងារសម្អាតទិន្នន័យសំណួរឱ្យទៅជា Plain Object សុទ្ធ ១០០%
   const sanitizeQuestions = useCallback((data: any[]): Question[] => {
     if (!Array.isArray(data)) return [];
-    return data.map(q => {
-      const sanitized: Question = {
-        subject: String(q.subject || ''),
-        question: String(q.question || ''),
-        type: q.type === 'short' ? 'short' : 'mcq',
-        isActive: q.isActive !== false
-      };
-      
-      if (q.type === 'mcq') {
-        sanitized.options = Array.isArray(q.options) ? q.options.map((o: any) => String(o)) : ['', '', '', ''];
-        sanitized.correct = typeof q.correct === 'number' ? q.correct : 0;
-      } else {
-        sanitized.answer = String(q.answer || '');
-      }
-      
-      return sanitized;
-    });
+    
+    return data
+      .filter(q => q && typeof q === 'object')
+      .map(q => {
+        const type = q.type === 'short' ? 'short' : 'mcq';
+        
+        const sanitized: Question = {
+          subject: String(q.subject || ''),
+          question: String(q.question || ''),
+          type: type,
+          isActive: q.isActive !== false
+        };
+        
+        if (type === 'mcq') {
+          sanitized.options = Array.isArray(q.options) 
+            ? q.options.map((o: any) => String(o || ''))
+            : ['', '', '', ''];
+          sanitized.correct = typeof q.correct === 'number' ? q.correct : 0;
+        } else {
+          sanitized.answer = String(q.answer || '');
+        }
+        
+        return sanitized;
+      });
   }, []);
 
+  const saveToLocal = useCallback((data: Question[]) => {
+    try {
+      const sanitized = sanitizeQuestions(data);
+      const jsonString = JSON.stringify(sanitized);
+      localStorage.setItem('quiz_data', jsonString);
+    } catch (e) {
+      console.error("JSON Stringify Error in saveToLocal:", e);
+    }
+  }, [sanitizeQuestions]);
+
   useEffect(() => {
+    if (isListeningRef.current) return;
+    isListeningRef.current = true;
+
     initFirebase();
+    
     const saved = localStorage.getItem('quiz_data');
     if (saved) {
       try { 
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
+        if (Array.isArray(parsed)) {
           setQuizData(sanitizeQuestions(parsed));
         }
-      } catch (e) {}
+      } catch (e) {
+        console.error("Local storage load error:", e);
+      }
     }
 
     const unsubscribe = listenToQuestions(
       (remoteData) => {
         const cleaned = sanitizeQuestions(remoteData);
         setQuizData(cleaned);
-        localStorage.setItem('quiz_data', JSON.stringify(cleaned));
+        saveToLocal(cleaned);
         setIsCloudConnected(true);
         setIsInitialized(true);
       },
@@ -71,19 +94,35 @@ const App: React.FC = () => {
       }
     );
 
-    const timer = setTimeout(() => { if (!isInitialized) setIsInitialized(true); }, 3000);
-    return () => { unsubscribe(); clearTimeout(timer); };
-  }, [isInitialized, sanitizeQuestions]);
+    const timer = setTimeout(() => { 
+      if (!isInitialized) {
+        setIsInitialized(true); 
+      }
+    }, 5000);
+    
+    return () => { 
+      unsubscribe(); 
+      clearTimeout(timer);
+      isListeningRef.current = false;
+    };
+  }, [sanitizeQuestions, saveToLocal, isInitialized, quizData.length]);
 
   const handleSyncData = (newData: Question[]) => {
-    const sanitized = sanitizeQuestions(newData);
-    setQuizData(sanitized);
-    localStorage.setItem('quiz_data', JSON.stringify(sanitized));
-    
-    if (userRole === 'admin') {
-      syncQuestionsToFirebase(sanitized)
-        .then(() => setIsCloudConnected(true))
-        .catch(() => setIsCloudConnected('error'));
+    try {
+      const sanitized = sanitizeQuestions(newData);
+      setQuizData(sanitized);
+      saveToLocal(sanitized);
+      
+      if (userRole === 'admin') {
+        syncQuestionsToFirebase(sanitized)
+          .then(() => setIsCloudConnected(true))
+          .catch((err) => {
+            console.error("Cloud sync operation failed:", err);
+            setIsCloudConnected('error');
+          });
+      }
+    } catch (e) {
+      console.error("Critical error in handleSyncData:", e);
     }
   };
 
@@ -155,7 +194,14 @@ const App: React.FC = () => {
   return (
     <div className="min-h-screen py-6 px-4 md:py-12">
       <div className="max-w-4xl mx-auto">
-        <Header mode={mode} role={userRole} totalQuestions={quizData.length} setMode={(m: AppMode) => { setMode(m); setActiveQuiz(null); }} onLogout={() => setUserRole(null)} />
+        <Header 
+          mode={mode} 
+          role={userRole} 
+          totalQuestions={quizData.length} 
+          cloudStatus={isCloudConnected}
+          setMode={(m: AppMode) => { setMode(m); setActiveQuiz(null); }} 
+          onLogout={() => setUserRole(null)} 
+        />
         <main className="mt-8">
           {mode === 'play' ? (
             activeQuiz ? (
@@ -164,15 +210,21 @@ const App: React.FC = () => {
                 subject={activeQuiz.subject} 
                 partIndex={activeQuiz.partIndex}
                 type={activeQuiz.type}
-                allSubjectQuestions={quizData.filter(q => q.subject === activeQuiz.subject && q.type === activeQuiz.type)}
+                // បើសិនជាតេស្តចម្រុះ ប្រើសំណួរដែលបានផ្ញើមកស្រាប់ បើមិនមែនទេទើប Filter តាម Subject
+                allSubjectQuestions={activeQuiz.customQuestions || quizData.filter(q => q.subject === activeQuiz.subject && q.type === activeQuiz.type)}
                 onExit={() => setActiveQuiz(null)}
-                onStartNextPart={(newPartIndex) => {
+                onStartNextPart={activeQuiz.isMixed ? undefined : (newPartIndex) => {
                   setActiveQuiz(prev => prev ? { ...prev, partIndex: newPartIndex } : null);
                   window.scrollTo({ top: 0, behavior: 'smooth' });
                 }}
               />
             ) : (
-              <PlaySection quizData={quizData} onStartQuiz={(subject, partIndex, type) => setActiveQuiz({ subject, partIndex, type })} />
+              <PlaySection 
+                quizData={quizData} 
+                onStartQuiz={(subject, partIndex, type, customQuestions, isMixed) => 
+                  setActiveQuiz({ subject, partIndex, type, customQuestions, isMixed })
+                } 
+              />
             )
           ) : (
             <CreateSection 
