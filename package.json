@@ -1,5 +1,5 @@
 {
-  "name": "copy-of-quiz-master-kh---pro-(update)",
+  "name": "copy-of-master-pro-quiz",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -12,7 +12,8 @@
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
     "@google/genai": "^1.38.0",
-    "firebase": "^12.8.0"
+    "firebase": "^12.8.0",
+    "html2canvas": "1.4.1"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",

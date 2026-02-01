@@ -1,6 +1,6 @@
 
 import * as React from 'react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Question, AppMode, SelectedQuizInfo, UserRole } from './types';
 import { INITIAL_QUESTIONS, SECRET_CODE } from './constants';
 import Header from './components/Header';
@@ -18,27 +18,54 @@ const App: React.FC = () => {
   const [isInitialized, setIsInitialized] = useState(false);
   const [isCloudConnected, setIsCloudConnected] = useState<boolean | 'error'>(false);
 
+  // មុខងារសម្អាតទិន្នន័យសំណួរឱ្យទៅជា Plain Object សុទ្ធ ១០០%
+  const sanitizeQuestions = useCallback((data: any[]): Question[] => {
+    if (!Array.isArray(data)) return [];
+    return data.map(q => {
+      const sanitized: Question = {
+        subject: String(q.subject || ''),
+        question: String(q.question || ''),
+        type: q.type === 'short' ? 'short' : 'mcq',
+        isActive: q.isActive !== false
+      };
+      
+      if (q.type === 'mcq') {
+        sanitized.options = Array.isArray(q.options) ? q.options.map((o: any) => String(o)) : ['', '', '', ''];
+        sanitized.correct = typeof q.correct === 'number' ? q.correct : 0;
+      } else {
+        sanitized.answer = String(q.answer || '');
+      }
+      
+      return sanitized;
+    });
+  }, []);
+
   useEffect(() => {
     initFirebase();
     const saved = localStorage.getItem('quiz_data');
     if (saved) {
       try { 
         const parsed = JSON.parse(saved);
-        if (parsed.length > 0) setQuizData(parsed);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setQuizData(sanitizeQuestions(parsed));
+        }
       } catch (e) {}
     }
 
     const unsubscribe = listenToQuestions(
       (remoteData) => {
-        setQuizData(remoteData);
-        localStorage.setItem('quiz_data', JSON.stringify(remoteData));
+        const cleaned = sanitizeQuestions(remoteData);
+        setQuizData(cleaned);
+        localStorage.setItem('quiz_data', JSON.stringify(cleaned));
         setIsCloudConnected(true);
         setIsInitialized(true);
       },
       (error) => {
         setIsCloudConnected('error');
         if (!isInitialized) {
-          if (quizData.length === 0 && !saved) setQuizData(INITIAL_QUESTIONS);
+          if (quizData.length === 0 && !saved) {
+            setQuizData(sanitizeQuestions(INITIAL_QUESTIONS));
+          }
           setIsInitialized(true);
         }
       }
@@ -46,13 +73,17 @@ const App: React.FC = () => {
 
     const timer = setTimeout(() => { if (!isInitialized) setIsInitialized(true); }, 3000);
     return () => { unsubscribe(); clearTimeout(timer); };
-  }, []);
+  }, [isInitialized, sanitizeQuestions]);
 
   const handleSyncData = (newData: Question[]) => {
-    setQuizData(newData);
-    localStorage.setItem('quiz_data', JSON.stringify(newData));
+    const sanitized = sanitizeQuestions(newData);
+    setQuizData(sanitized);
+    localStorage.setItem('quiz_data', JSON.stringify(sanitized));
+    
     if (userRole === 'admin') {
-      syncQuestionsToFirebase(newData).then(() => setIsCloudConnected(true)).catch(() => setIsCloudConnected('error'));
+      syncQuestionsToFirebase(sanitized)
+        .then(() => setIsCloudConnected(true))
+        .catch(() => setIsCloudConnected('error'));
     }
   };
 
