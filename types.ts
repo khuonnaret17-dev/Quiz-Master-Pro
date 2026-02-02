@@ -27,6 +27,11 @@ export interface SelectedQuizInfo {
   subject: string;
   partIndex: number;
   type: 'mcq' | 'short';
-  customQuestions?: Question[]; // សម្រាប់ផ្ទុកសំណួរដែលលាយបញ្ចូលគ្នា
-  isMixed?: boolean;           // បញ្ជាក់ថាជាតេស្តចម្រុះ
+  customQuestions?: Question[]; 
+  isMixed?: boolean;           
+}
+
+export interface TelegramConfig {
+  botToken: string;
+  chatId: string;
 }

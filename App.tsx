@@ -19,6 +19,7 @@ const App: React.FC = () => {
   const [isCloudConnected, setIsCloudConnected] = useState<boolean | 'error'>(false);
   const isListeningRef = useRef(false);
 
+  // មុខងារសម្អាតទិន្នន័យឱ្យទៅជា Plain Object សុទ្ធសាធ (ដោះស្រាយ Circular Error)
   const sanitizeQuestions = useCallback((data: any[]): Question[] => {
     if (!Array.isArray(data)) return [];
     
@@ -27,33 +28,36 @@ const App: React.FC = () => {
       .map(q => {
         const type = q.type === 'short' ? 'short' : 'mcq';
         
-        const sanitized: Question = {
-          subject: String(q.subject || ''),
-          question: String(q.question || ''),
-          type: type,
-          isActive: q.isActive !== false
-        };
-        
+        // បង្កើត Object ថ្មីដែលយកតែតម្លៃមូលដ្ឋាន (Primitive values)
         if (type === 'mcq') {
-          sanitized.options = Array.isArray(q.options) 
-            ? q.options.map((o: any) => String(o || ''))
-            : ['', '', '', ''];
-          sanitized.correct = typeof q.correct === 'number' ? q.correct : 0;
+          return {
+            subject: String(q.subject || 'មិនមានមុខវិជ្ជា'),
+            question: String(q.question || ''),
+            type: 'mcq',
+            options: Array.isArray(q.options) 
+              ? q.options.map((o: any) => String(o || ''))
+              : ['', '', '', ''],
+            correct: typeof q.correct === 'number' ? q.correct : 0,
+            isActive: q.isActive !== false
+          } as Question;
         } else {
-          sanitized.answer = String(q.answer || '');
+          return {
+            subject: String(q.subject || 'មិនមានមុខវិជ្ជា'),
+            question: String(q.question || ''),
+            type: 'short',
+            answer: String(q.answer || ''),
+            isActive: q.isActive !== false
+          } as Question;
         }
-        
-        return sanitized;
       });
   }, []);
 
   const saveToLocal = useCallback((data: Question[]) => {
     try {
       const sanitized = sanitizeQuestions(data);
-      const jsonString = JSON.stringify(sanitized);
-      localStorage.setItem('quiz_data', jsonString);
+      localStorage.setItem('quiz_data', JSON.stringify(sanitized));
     } catch (e) {
-      console.error("JSON Stringify Error in saveToLocal:", e);
+      console.error("Local Storage Error:", e);
     }
   }, [sanitizeQuestions]);
 
@@ -71,7 +75,7 @@ const App: React.FC = () => {
           setQuizData(sanitizeQuestions(parsed));
         }
       } catch (e) {
-        console.error("Local storage load error:", e);
+        console.error("Parse Error:", e);
       }
     }
 
@@ -95,9 +99,7 @@ const App: React.FC = () => {
     );
 
     const timer = setTimeout(() => { 
-      if (!isInitialized) {
-        setIsInitialized(true); 
-      }
+      if (!isInitialized) setIsInitialized(true); 
     }, 5000);
     
     return () => { 
@@ -108,26 +110,22 @@ const App: React.FC = () => {
   }, [sanitizeQuestions, saveToLocal, isInitialized, quizData.length]);
 
   const handleSyncData = (newData: Question[]) => {
-    try {
-      const sanitized = sanitizeQuestions(newData);
-      setQuizData(sanitized);
-      saveToLocal(sanitized);
-      
-      if (userRole === 'admin') {
-        syncQuestionsToFirebase(sanitized)
-          .then(() => setIsCloudConnected(true))
-          .catch((err) => {
-            console.error("Cloud sync operation failed:", err);
-            setIsCloudConnected('error');
-          });
-      }
-    } catch (e) {
-      console.error("Critical error in handleSyncData:", e);
+    const sanitized = sanitizeQuestions(newData);
+    setQuizData(sanitized);
+    saveToLocal(sanitized);
+    
+    if (userRole === 'admin') {
+      syncQuestionsToFirebase(sanitized)
+        .then(() => setIsCloudConnected(true))
+        .catch((err) => {
+          console.error("Firebase sync error:", err);
+          setIsCloudConnected('error');
+        });
     }
   };
 
-  const handleAddQuestion = (q: Question) => handleSyncData([...quizData, { ...q, isActive: q.isActive ?? true }]);
-  const handleUpdateQuestion = (idx: number, updatedQ: Question) => handleSyncData(quizData.map((q, i) => i === idx ? { ...updatedQ } : q));
+  const handleAddQuestion = (q: Question) => handleSyncData([...quizData, q]);
+  const handleUpdateQuestion = (idx: number, updatedQ: Question) => handleSyncData(quizData.map((q, i) => i === idx ? updatedQ : q));
   const handleRemoveQuestion = (idx: number) => handleSyncData(quizData.filter((_, i) => i !== idx));
   
   const handleToggleSubject = (sub: string, type: 'mcq' | 'short', active: boolean) => {
@@ -140,8 +138,7 @@ const App: React.FC = () => {
   };
 
   const handleRemoveSubject = (sub: string, type: 'mcq' | 'short') => { 
-    const typeText = type === 'mcq' ? 'QCM' : 'Q & A';
-    if (confirm(`លុបមុខវិជ្ជា "${sub}" ក្នុងផ្នែក ${typeText}?`)) {
+    if (confirm(`តើអ្នកចង់លុបមុខវិជ្ជា "${sub}" ទាំងស្រុង?`)) {
       handleSyncData(quizData.filter(q => !(q.subject === sub && q.type === type))); 
     }
   };
@@ -172,7 +169,7 @@ const App: React.FC = () => {
     handleSyncData([...reorderedQuestions, ...otherTypeQuestions]);
   };
 
-  const handleBatchAdd = (qs: Question[]) => handleSyncData([...quizData, ...qs.map(q => ({ ...q, isActive: q.isActive ?? true }))]);
+  const handleBatchAdd = (qs: Question[]) => handleSyncData([...quizData, ...qs]);
 
   if (!isInitialized) return null;
 
@@ -210,7 +207,6 @@ const App: React.FC = () => {
                 subject={activeQuiz.subject} 
                 partIndex={activeQuiz.partIndex}
                 type={activeQuiz.type}
-                // បើសិនជាតេស្តចម្រុះ ប្រើសំណួរដែលបានផ្ញើមកស្រាប់ បើមិនមែនទេទើប Filter តាម Subject
                 allSubjectQuestions={activeQuiz.customQuestions || quizData.filter(q => q.subject === activeQuiz.subject && q.type === activeQuiz.type)}
                 onExit={() => setActiveQuiz(null)}
                 onStartNextPart={activeQuiz.isMixed ? undefined : (newPartIndex) => {

@@ -1,14 +1,7 @@
 
-import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
+import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
 import { initializeFirestore, doc, setDoc, onSnapshot, Firestore, getFirestore } from 'firebase/firestore';
 import { Question } from '../types';
-
-/**
- * ⚠️ ដំណោះស្រាយសម្រាប់បញ្ហា Firestore Connection Timeout (10 seconds):
- * ១. បង្ខំឱ្យប្រើ Long Polling (experimentalForceLongPolling)
- * ២. បិទការស្វែងរក Network Type (experimentalAutoDetectLongPolling: false)
- * ៣. បិទ Fetch Streams ដើម្បីជៀសវាងការស្ទះក្នុង Browser មួយចំនួន
- */
 
 const firebaseConfig = {
   apiKey: "AIzaSyDw5UkwT6ab4rlel-g6KSmaKM9MgjUnIOs",
@@ -29,11 +22,10 @@ export const initFirebase = (): Firestore | null => {
     const apps = getApps();
     const app: FirebaseApp = apps.length === 0 ? initializeApp(firebaseConfig) : apps[0];
     
-    // ការកំណត់កម្រិតខ្ពស់ដើម្បីដោះស្រាយបញ្ហា Network/Proxy និង Timeout 10s
     db = initializeFirestore(app, {
       experimentalForceLongPolling: true,
       experimentalAutoDetectLongPolling: false,
-      useFetchStreams: false, // បន្ថែមដើម្បីជួយដល់ល្បឿនតភ្ជាប់ក្នុងបណ្ដាញយឺត
+      useFetchStreams: false,
     } as any);
     
     return db;
@@ -49,31 +41,31 @@ export const initFirebase = (): Firestore | null => {
 };
 
 /**
- * មុខងារសម្អាតទិន្នន័យឱ្យទៅជា Plain Object សុទ្ធសាធមុននឹងផ្ញើទៅ Firestore
- * ដើម្បីជៀសវាង error "Converting circular structure to JSON"
+ * មុខងារសម្អាតទិន្នន័យឱ្យទៅជា Plain Data សុទ្ធសាធមុនពេលផ្ញើទៅ Firebase
  */
 const prepareDataForFirestore = (questions: Question[]): any[] => {
   if (!Array.isArray(questions)) return [];
   
   return questions.map(q => {
-    // បង្កើត object ថ្មីដោយជ្រើសរើសយកតែ key ដែលចាំបាច់ និងជា Primitive Type
-    const cleaned: any = {
-      subject: String(q.subject || ''),
-      question: String(q.question || ''),
-      type: q.type === 'short' ? 'short' : 'mcq',
-      isActive: q.isActive !== false
-    };
-
-    if (cleaned.type === 'mcq') {
-      cleaned.options = Array.isArray(q.options) 
-        ? q.options.map(o => String(o || '')) 
-        : ['', '', '', ''];
-      cleaned.correct = Number(q.correct) || 0;
+    const type = q.type === 'short' ? 'short' : 'mcq';
+    if (type === 'mcq') {
+      return {
+        subject: String(q.subject || ''),
+        question: String(q.question || ''),
+        type: 'mcq',
+        options: Array.isArray(q.options) ? q.options.map(o => String(o)) : [],
+        correct: typeof q.correct === 'number' ? q.correct : 0,
+        isActive: q.isActive !== false
+      };
     } else {
-      cleaned.answer = String(q.answer || '');
+      return {
+        subject: String(q.subject || ''),
+        question: String(q.question || ''),
+        type: 'short',
+        answer: String(q.answer || ''),
+        isActive: q.isActive !== false
+      };
     }
-
-    return cleaned;
   });
 };
 
@@ -117,12 +109,7 @@ export const listenToQuestions = (
       }
     },
     (error) => {
-      // កែសម្រួលការចាប់ Error កុំឱ្យវាបង្ហាញ Warning រំខានច្រើនពេកក្នុង Console ពេល Network មិនល្អ
-      if (error.code === 'unavailable' || error.message.includes('10 seconds')) {
-        console.warn("Firestore backend is taking too long. Continuing in offline mode...");
-      } else {
-        console.error("Firestore real-time error:", error);
-      }
+      console.error("Firestore real-time error:", error);
       onError(error);
     }
   );
