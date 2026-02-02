@@ -40,19 +40,25 @@ const SubjectCard: React.FC<{
   isFirst: boolean;
   isLast: boolean;
   onToggleSubject: (subject: string, type: 'mcq' | 'short', active: boolean) => void;
-  onUpdateSubject: (subject: string, type: 'mcq' | 'short') => void;
+  onEditSubject: (subject: string, type: 'mcq' | 'short') => void;
   onRemoveSubject: (subject: string, type: 'mcq' | 'short') => void;
   onReorderSubject: (subject: string, type: 'mcq' | 'short', direction: 'up' | 'down') => void;
   onOpenPdfSettings: (name: string, type: 'mcq' | 'short') => void;
   onOpenImageSettings: (name: string, type: 'mcq' | 'short') => void;
-}> = ({ sub, isFirst, isLast, onToggleSubject, onUpdateSubject, onRemoveSubject, onReorderSubject, onOpenPdfSettings, onOpenImageSettings }) => (
+}> = ({ sub, isFirst, isLast, onToggleSubject, onEditSubject, onRemoveSubject, onReorderSubject, onOpenPdfSettings, onOpenImageSettings }) => (
   <div className={`p-6 rounded-[2rem] border transition-all flex flex-col justify-between ${sub.isActive ? 'bg-white border-gray-100 shadow-sm' : 'bg-gray-100 border-gray-200 grayscale opacity-60'}`}>
     <div>
       <div className="flex justify-between items-start mb-4">
         <div className="truncate pr-2 flex-1">
           <div className="flex items-center gap-2 mb-1">
             <h3 className="text-lg font-black heading-kh text-maroon truncate max-w-[150px]">{sub.name}</h3>
-            <button onClick={() => onUpdateSubject(sub.name, sub.type)} className="text-xs p-1 bg-maroon/5 text-maroon rounded hover:bg-maroon hover:text-white transition-all shadow-sm" title="កែសម្រួលឈ្មោះមុខវិជ្ជា">✏️</button>
+            <button 
+              onClick={() => onEditSubject(sub.name, sub.type)} 
+              className="text-xs p-1.5 bg-maroon/5 text-maroon rounded-lg hover:bg-maroon hover:text-white transition-all shadow-sm" 
+              title="កែសម្រួលឈ្មោះមុខវិជ្ជា"
+            >
+              ✏️
+            </button>
           </div>
           <div className="flex items-center gap-3 mt-2">
             <span className="text-[9px] font-black bg-gray-50 px-3 py-1 rounded-full text-gray-400">{sub.count} សំណួរ</span>
@@ -96,6 +102,11 @@ const CreateSection: React.FC<CreateSectionProps> = ({
   const [isExportingZip, setIsExportingZip] = useState(false);
   const [zipProgress, setZipProgress] = useState({ current: 0, total: 0 });
   
+  // Subject Edit Modal States
+  const [showEditSubjectModal, setShowEditSubjectModal] = useState(false);
+  const [subjectToEdit, setSubjectToEdit] = useState<{ name: string, type: 'mcq' | 'short' } | null>(null);
+  const [newSubjectName, setNewSubjectName] = useState('');
+
   // PDF Settings States
   const [showPdfModal, setShowPdfModal] = useState(false);
   const [selectedPdfInfo, setSelectedPdfInfo] = useState<{name: string, type: 'mcq' | 'short'} | null>(null);
@@ -170,6 +181,20 @@ const CreateSection: React.FC<CreateSectionProps> = ({
     setShowImageModal(true);
   };
 
+  const handleEditSubjectTrigger = (name: string, type: 'mcq' | 'short') => {
+    setSubjectToEdit({ name, type });
+    setNewSubjectName(name);
+    setShowEditSubjectModal(true);
+  };
+
+  const handleSaveSubjectName = () => {
+    if (subjectToEdit && newSubjectName.trim() && newSubjectName.trim() !== subjectToEdit.name) {
+      onUpdateSubject(subjectToEdit.name, subjectToEdit.type, newSubjectName.trim());
+    }
+    setShowEditSubjectModal(false);
+    setSubjectToEdit(null);
+  };
+
   const handleDownloadPDF = () => {
     if (!selectedPdfInfo) return;
     const { name, type } = selectedPdfInfo;
@@ -183,8 +208,8 @@ const CreateSection: React.FC<CreateSectionProps> = ({
       if (q.type === 'mcq' && q.options) {
         const optionsWithMeta = q.options.map((opt, i) => ({ text: opt, isCorrect: i === q.correct }));
         const shuffledOptions = pdfSettings.shuffleQuestions ? shuffleArray(optionsWithMeta) : optionsWithMeta;
-        const newCorrectIndex = shuffledOptions.findIndex(o => o.isCorrect);
-        return { ...q, options: shuffledOptions.map(o => o.text), correct: newCorrectIndex };
+        const newCorrectIndex = (shuffledOptions as any[]).findIndex((o: any) => o.isCorrect);
+        return { ...q, options: (shuffledOptions as any[]).map((o: any) => o.text), correct: newCorrectIndex };
       }
       return q;
     });
@@ -254,9 +279,7 @@ const CreateSection: React.FC<CreateSectionProps> = ({
     setIsExportingZip(true);
     setZipProgress({ current: 0, total: questions.length });
     
-    // បង្កើត JSZip instance ថ្មី
     const zip = new JSZip();
-    // ប្រើឈ្មោះជាអក្សរឡាតាំងសម្រាប់ Folders ដើម្បីការពារបញ្ហា Extraction
     const folderName = `Quiz_Images_${name.replace(/\s+/g, '_')}_${type.toUpperCase()}`;
     const folder = zip.folder(folderName);
     
@@ -268,15 +291,14 @@ const CreateSection: React.FC<CreateSectionProps> = ({
       if (q.type === 'mcq' && q.options) {
         const optionsWithMeta = q.options.map((opt, oIdx) => ({ text: opt, isCorrect: oIdx === q.correct }));
         const shuffledOptions = shuffleArray(optionsWithMeta);
-        const newCorrectIndex = shuffledOptions.findIndex(o => o.isCorrect);
-        processedQ.options = shuffledOptions.map(o => o.text);
+        const newCorrectIndex = (shuffledOptions as any[]).findIndex((o: any) => o.isCorrect);
+        processedQ.options = (shuffledOptions as any[]).map((o: any) => o.text);
         processedQ.correct = newCorrectIndex;
       }
 
       setExportQuestion(processedQ);
       setIsExporting(true);
       
-      // រង់ចាំឱ្យ Canvas Render បានសព្វគ្រប់
       await new Promise(resolve => setTimeout(resolve, 400));
       
       if (exportRef.current) {
@@ -288,7 +310,6 @@ const CreateSection: React.FC<CreateSectionProps> = ({
             logging: false
           });
           const base64Data = canvas.toDataURL('image/png').split(',')[1];
-          // ឈ្មោះហ្វាយជាលេខរៀង ដើម្បីកុំឱ្យជាន់គ្នា
           folder.file(`Question_${i + 1}.png`, base64Data, { base64: true });
         } catch (err) { 
           console.error("Error capturing question:", i, err); 
@@ -297,7 +318,6 @@ const CreateSection: React.FC<CreateSectionProps> = ({
     }
     
     try {
-      // បង្កើត ZIP file
       const content = await zip.generateAsync({ 
         type: "blob",
         compression: "DEFLATE",
@@ -306,18 +326,15 @@ const CreateSection: React.FC<CreateSectionProps> = ({
       
       const link = document.createElement('a');
       link.href = URL.createObjectURL(content);
-      // ប្រើឈ្មោះអក្សរឡាតាំងសម្រាប់ហ្វាយ ZIP ដើម្បីឱ្យប្រព័ន្ធប្រតិបត្តិការទាំងអស់បើកបាន
       link.download = `Quiz_Pack_${name.replace(/\s+/g, '_')}_${type.toUpperCase()}_${Date.now()}.zip`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      
-      // សម្អាត URL បន្ទាប់ពីប្រើរួច
       setTimeout(() => URL.revokeObjectURL(link.href), 1000);
       
     } catch (err) { 
       console.error("ZIP Generation Error:", err);
-      alert("មានបញ្ហាក្នុងការបង្កើត ZIP! សូមព្យាយាមម្ដងទៀត។"); 
+      alert("មានបញ្ហាក្នុងការបង្កើត ZIP!"); 
     }
     
     setIsExportingZip(false);
@@ -406,6 +423,33 @@ const CreateSection: React.FC<CreateSectionProps> = ({
 
   return (
     <div className="space-y-8 animate-fadeIn pb-20">
+      {/* Subject Edit Modal */}
+      {showEditSubjectModal && subjectToEdit && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[250] flex items-center justify-center p-6">
+          <div className="glass-card w-full max-w-md rounded-[2.5rem] p-8 shadow-2xl border-2 border-white animate-fadeIn">
+            <h3 className="text-xl font-black heading-kh text-maroon mb-6 flex items-center gap-2">
+              ✏️ កែសម្រួលឈ្មោះមុខវិជ្ជា
+            </h3>
+            <div className="space-y-5">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase text-gray-400">ឈ្មោះមុខវិជ្ជាថ្មី</label>
+                <input 
+                  type="text" 
+                  value={newSubjectName} 
+                  onChange={e => setNewSubjectName(e.target.value)} 
+                  className="w-full px-5 py-3 rounded-xl border border-gray-100 outline-none focus:ring-2 focus:ring-maroon small-kh" 
+                  placeholder="បញ្ចូលឈ្មោះថ្មី..."
+                />
+              </div>
+              <div className="flex gap-3 pt-6">
+                <button onClick={() => setShowEditSubjectModal(false)} className="flex-1 py-4 rounded-2xl bg-gray-100 text-gray-500 font-bold small-kh hover:bg-gray-200">បោះបង់</button>
+                <button onClick={handleSaveSubjectName} className="flex-2 px-8 py-4 rounded-2xl bg-maroon text-white font-black heading-kh shadow-lg hover:brightness-110">រក្សាទុក</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* PDF Settings Modal */}
       {showPdfModal && selectedPdfInfo && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[250] flex items-center justify-center p-6">
@@ -577,7 +621,7 @@ const CreateSection: React.FC<CreateSectionProps> = ({
                       </tr>
                     </thead>
                     <tbody>
-                      {Array.from({ length: Math.ceil(pdfSubjectData.questions.length / 2) }).map((_, i) => {
+                      {(Array.from({ length: Math.ceil(pdfSubjectData.questions.length / 2) }) as any[]).map((_, i) => {
                         const q1 = pdfSubjectData.questions[i * 2];
                         const q2 = pdfSubjectData.questions[i * 2 + 1];
                         return (
@@ -601,7 +645,7 @@ const CreateSection: React.FC<CreateSectionProps> = ({
         </div>
       )}
 
-      {/* Hidden Export Template - Dynamic Image Styles */}
+      {/* Hidden Export Template */}
       {isExporting && exportQuestion && (
         <div className="fixed -left-[2000px] top-0">
           <div ref={exportRef} className={`w-[800px] p-12 rounded-[4rem] relative overflow-hidden transition-all duration-300 shadow-2xl ${
@@ -610,19 +654,6 @@ const CreateSection: React.FC<CreateSectionProps> = ({
             imageSettings.style === 'clean' ? 'bg-white text-gray-800 border-[16px] border-gray-100' :
             'bg-white text-gray-800 border-[16px] border-maroon'
           }`}>
-            
-            {/* Background elements */}
-            {imageSettings.style === 'modern' && (
-              <>
-                <div className="absolute top-0 right-0 w-80 h-80 bg-maroon/5 rounded-full -mr-40 -mt-40 blur-3xl"></div>
-                <div className="absolute bottom-0 left-0 w-80 h-80 bg-maroon/5 rounded-full -ml-40 -mb-40 blur-3xl"></div>
-              </>
-            )}
-            {imageSettings.style === 'classic' && (
-              <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: "url('https://www.transparenttextures.com/patterns/parchment.png')" }}></div>
-            )}
-
-            {/* Header */}
             <div className={`flex justify-between items-center mb-10 pb-6 border-b-4 border-dashed ${
               imageSettings.style === 'dark' ? 'border-white/10' :
               imageSettings.style === 'classic' ? 'border-[#8d6e63]/20' :
@@ -637,28 +668,21 @@ const CreateSection: React.FC<CreateSectionProps> = ({
                     imageSettings.style === 'dark' ? 'text-white' : 
                     imageSettings.style === 'classic' ? 'text-[#3e2723]' : 'text-maroon'
                   }`}>{imageSettings.schoolName}</h1>
-                  <p className="text-sm font-khmer os siemreap text-gray-400 uppercase tracking-widest">Khoun Naret</p>
+                  <p className="text-sm font-bold text-gray-400">Khmer Educational Quiz</p>
                 </div>
               </div>
               <div className="text-right">
                 <span className={`text-sm font-black px-5 py-2 rounded-full uppercase shadow-sm ${
                   imageSettings.style === 'dark' ? 'bg-white/10 text-white' : 'bg-maroon text-white'
                 }`}>{exportQuestion.subject}</span>
-                <p className="text-[10px] font-black text-gray-400 mt-2 uppercase tracking-tighter">
-                  {exportQuestion.type === 'mcq' ? 'QCM' : 'Q & A'}
-                </p>
               </div>
             </div>
-
-            {/* Question Body */}
             <div className="mb-12">
               <h2 className={`text-4xl font-black heading-kh leading-[1.6] ${
                 imageSettings.style === 'dark' ? 'text-white' : 
                 imageSettings.style === 'classic' ? 'text-[#3e2723]' : 'text-maroon'
               }`}>{exportQuestion.question}</h2>
             </div>
-
-            {/* Answers */}
             {exportQuestion.type === 'mcq' ? (
               <div className="grid grid-cols-1 gap-4">
                 {exportQuestion.options?.map((opt, i) => (
@@ -668,61 +692,24 @@ const CreateSection: React.FC<CreateSectionProps> = ({
                       : (imageSettings.style === 'dark' ? 'bg-white/5 border-white/10' : 'bg-gray-50 border-transparent')
                   }`}>
                     <span className={`w-14 h-14 rounded-2xl flex items-center justify-center text-2xl font-black shadow-md ${
-                      i === exportQuestion.correct 
-                        ? 'bg-green-500 text-white' 
-                        : (imageSettings.style === 'dark' ? 'bg-white/10 text-white' : 'bg-white text-maroon')
+                      i === exportQuestion.correct ? 'bg-green-500 text-white' : 'bg-white text-maroon'
                     }`}>{KHMER_PREFIXES[i]}</span>
                     <span className={`text-2xl font-bold small-kh ${
-                      i === exportQuestion.correct 
-                        ? (imageSettings.style === 'dark' ? 'text-green-300' : 'text-green-800') 
-                        : (imageSettings.style === 'dark' ? 'text-gray-300' : 'text-gray-600')
+                      i === exportQuestion.correct ? 'text-green-800' : 'text-gray-600'
                     }`}>{opt}</span>
-                    {i === exportQuestion.correct && <span className="ml-auto text-3xl">✅</span>}
                   </div>
                 ))}
               </div>
             ) : (
-              <div className={`rounded-r-[3rem] p-10 border-l-[12px] ${
-                imageSettings.style === 'dark' ? 'bg-white/5 border-white/40' : 
-                imageSettings.style === 'classic' ? 'bg-[#8d6e63]/10 border-[#8d6e63]' : 'bg-green-50 border-green-500'
-              }`}>
-                <p className={`text-2xl font-black heading-kh mb-4 ${
-                  imageSettings.style === 'dark' ? 'text-white' : 
-                  imageSettings.style === 'classic' ? 'text-[#3e2723]' : 'text-green-700'
-                }`}>ចម្លើយដែលត្រឹមត្រូវ ៖</p>
-                <p className={`text-3xl font-bold small-kh leading-relaxed whitespace-pre-wrap ${
-                  imageSettings.style === 'dark' ? 'text-gray-200' : 'text-gray-800'
-                }`}>{exportQuestion.answer}</p>
+              <div className="rounded-r-[3rem] p-10 border-l-[12px] bg-green-50 border-green-500">
+                <p className="text-3xl font-bold small-kh leading-relaxed whitespace-pre-wrap">{exportQuestion.answer}</p>
               </div>
             )}
-
-            {/* Footer Watermark */}
             {imageSettings.showWatermark && (
               <div className="mt-12 flex justify-center opacity-30">
                 <p className="text-xs font-black tracking-[10px] uppercase">Quiz Master KH</p>
               </div>
             )}
-          </div>
-        </div>
-      )}
-
-      {/* Loading PDF/ZIP Indicator */}
-      {(isExportingPDF || isExportingZip) && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[300] flex items-center justify-center p-6">
-          <div className="bg-white rounded-[2rem] p-10 text-center shadow-2xl animate-fadeIn max-w-xs w-full">
-            <div className="w-16 h-16 border-4 border-maroon border-t-transparent rounded-full animate-spin mx-auto mb-6"></div>
-            <h3 className="text-xl font-black heading-kh text-maroon">
-              {isExportingZip ? `កំពុងរៀបចំរូបភាព ZIP...` : `កំពុងរៀបចំឯកសារ PDF...`}
-            </h3>
-            {isExportingZip && (
-              <div className="mt-4">
-                <div className="w-full bg-gray-100 h-2 rounded-full overflow-hidden">
-                  <div className="bg-maroon h-full transition-all duration-300" style={{ width: `${(zipProgress.current / zipProgress.total) * 100}%` }}></div>
-                </div>
-                <p className="text-[10px] font-bold text-maroon mt-2">រៀបចំបាន {toKhmerNumeral(zipProgress.current)} / {toKhmerNumeral(zipProgress.total)} រូបភាព</p>
-              </div>
-            )}
-            <p className="text-[10px] small-kh text-gray-500 mt-4 leading-relaxed">សូមកុំបិទផ្ទាំងនេះ រហូតដល់ដំណើរការចប់សព្វគ្រប់!</p>
           </div>
         </div>
       )}
@@ -739,7 +726,10 @@ const CreateSection: React.FC<CreateSectionProps> = ({
           <div className="space-y-6 animate-fadeIn">
             <div className="flex flex-wrap gap-4 items-center justify-between">
               <h2 className="text-xl font-black heading-kh text-maroon flex items-center gap-2"><span>{editingIndex !== null ? '✏️' : '🆕'}</span>{editingIndex !== null ? 'កែសម្រួលសំណួរ' : 'បង្កើតសំណួរថ្មី'}</h2>
-              <div className="flex bg-gray-100 p-1 rounded-xl"><button onClick={() => setQType('mcq')} className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase transition-all ${qType === 'mcq' ? 'bg-white text-maroon shadow-sm' : 'text-gray-400'}`}>QCM</button><button onClick={() => setQType('short')} className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase transition-all ${qType === 'short' ? 'bg-white text-maroon shadow-sm' : 'text-gray-400'}`}>Q & A</button></div>
+              <div className="flex bg-gray-100 p-1 rounded-xl">
+                <button onClick={() => setQType('mcq')} className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase transition-all ${qType === 'mcq' ? 'bg-white text-maroon shadow-sm' : 'text-gray-400'}`}>QCM</button>
+                <button onClick={() => setQType('short')} className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase transition-all ${qType === 'short' ? 'bg-white text-maroon shadow-sm' : 'text-gray-400'}`}>Q & A</button>
+              </div>
             </div>
             <div className="grid grid-cols-1 gap-5">
               <div className="space-y-2"><label className="text-[10px] font-black uppercase text-gray-400 ml-2">ឈ្មោះមុខវិជ្ជា</label><input type="text" value={subject} onChange={(e) => setSubject(e.target.value)} className="w-full px-6 py-4 rounded-2xl border border-gray-100 outline-none focus:ring-2 focus:ring-maroon small-kh bg-gray-50/50 text-maroon font-bold" placeholder="ឧទាហរណ៍៖ សេដ្ឋកិច្ច" /></div>
@@ -780,19 +770,43 @@ const CreateSection: React.FC<CreateSectionProps> = ({
               <div className="text-center md:text-left"><h3 className="text-lg font-black heading-kh text-maroon mb-1">រក្សាទុកទិន្នន័យ (Backup)</h3><p className="text-xs small-kh text-gray-500">អ្នកអាចទាញយក ឬបញ្ចូលសំណួរទាំងអស់ជាហ្វាយ JSON</p></div>
               <div className="flex gap-4"><button onClick={handleExportData} className="px-6 py-3 bg-blue-600 text-white rounded-xl font-black text-[10px] uppercase shadow-md hover:bg-blue-700 transition-all">📥 ទាញយក Backup</button><label className="px-6 py-3 bg-orange-600 text-white rounded-xl font-black text-[10px] uppercase shadow-md hover:bg-orange-700 transition-all cursor-pointer">📤 បញ្ចូល Backup<input type="file" accept=".json" onChange={handleImportData} className="hidden" /></label></div>
             </div>
+            
             <div className="space-y-6">
               <div className="flex items-center gap-3 border-l-4 border-blue-500 pl-4"><h2 className="text-xl font-black heading-kh text-blue-800">🔘 ផ្នែកសំណួរពហុចម្លើយ</h2><span className="bg-blue-100 text-blue-600 px-3 py-1 rounded-full text-[10px] font-black">{groupedSubjects.mcq.length} មុខវិជ្ជា</span></div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {groupedSubjects.mcq.map((sub, i) => (
-                  <SubjectCard key={`mcq-${i}`} sub={sub} isFirst={i === 0} isLast={i === groupedSubjects.mcq.length - 1} onToggleSubject={onToggleSubject} onUpdateSubject={(name, type) => { onUpdateSubject(name, type, name); }} onRemoveSubject={onRemoveSubject} onReorderSubject={onReorderSubject} onOpenPdfSettings={handleOpenPdfSettings} onOpenImageSettings={handleOpenImageSettings} />
+                  <SubjectCard 
+                    key={`mcq-${i}`} 
+                    sub={sub} 
+                    isFirst={i === 0} 
+                    isLast={i === groupedSubjects.mcq.length - 1} 
+                    onToggleSubject={onToggleSubject} 
+                    onEditSubject={handleEditSubjectTrigger}
+                    onRemoveSubject={onRemoveSubject} 
+                    onReorderSubject={onReorderSubject} 
+                    onOpenPdfSettings={handleOpenPdfSettings} 
+                    onOpenImageSettings={handleOpenImageSettings} 
+                  />
                 ))}
               </div>
             </div>
+
             <div className="space-y-6">
               <div className="flex items-center gap-3 border-l-4 border-orange-500 pl-4"><h2 className="text-xl font-black heading-kh text-orange-800">✍️ ផ្នែកសំណួរចម្លើយខ្លីៗ</h2><span className="bg-orange-100 text-orange-600 px-3 py-1 rounded-full text-[10px] font-black">{groupedSubjects.short.length} មុខវិជ្ជា</span></div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {groupedSubjects.short.map((sub, i) => (
-                  <SubjectCard key={`short-${i}`} sub={sub} isFirst={i === 0} isLast={i === groupedSubjects.short.length - 1} onToggleSubject={onToggleSubject} onUpdateSubject={(name, type) => { onUpdateSubject(name, type, name); }} onRemoveSubject={onRemoveSubject} onReorderSubject={onReorderSubject} onOpenPdfSettings={handleOpenPdfSettings} onOpenImageSettings={handleOpenImageSettings} />
+                  <SubjectCard 
+                    key={`short-${i}`} 
+                    sub={sub} 
+                    isFirst={i === 0} 
+                    isLast={i === groupedSubjects.short.length - 1} 
+                    onToggleSubject={onToggleSubject} 
+                    onEditSubject={handleEditSubjectTrigger}
+                    onRemoveSubject={onRemoveSubject} 
+                    onReorderSubject={onReorderSubject} 
+                    onOpenPdfSettings={handleOpenPdfSettings} 
+                    onOpenImageSettings={handleOpenImageSettings} 
+                  />
                 ))}
               </div>
             </div>
@@ -801,13 +815,22 @@ const CreateSection: React.FC<CreateSectionProps> = ({
       </div>
 
       {/* List section */}
-      <div className="glass-card rounded-[2.5rem] shadow-lg p-8 border border-white/50">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6"><h3 className="text-lg font-black heading-kh text-maroon">📚 បញ្ជីសំណួរទាំងអស់ ({quizData.length})</h3><div className="relative w-full md:w-64"><input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="ស្វែងរក..." className="w-full px-6 py-3 rounded-full border border-gray-100 outline-none small-kh text-sm focus:ring-2 focus:ring-maroon" /><span className="absolute right-4 top-3 opacity-30">🔍</span></div></div>
+      <div className="glass-card rounded-[2.5rem] shadow-lg p-8 border border-white/50 mt-10">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+          <h3 className="text-lg font-black heading-kh text-maroon">📚 បញ្ជីសំណួរទាំងអស់ ({quizData.length})</h3>
+          <div className="relative w-full md:w-64">
+            <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="ស្វែងរក..." className="w-full px-6 py-3 rounded-full border border-gray-100 outline-none small-kh text-sm focus:ring-2 focus:ring-maroon" />
+            <span className="absolute right-4 top-3 opacity-30">🔍</span>
+          </div>
+        </div>
         <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
           {filteredQuestions.length > 0 ? filteredQuestions.map((item) => (
             <div key={item.originalIndex} className={`p-5 rounded-3xl border flex justify-between items-center transition-all ${item.isActive === false ? 'bg-gray-50 border-gray-200 opacity-60' : 'bg-white border-gray-50 shadow-sm hover:shadow-md'}`}>
               <div className="truncate flex-1 pr-4">
-                <div className="flex items-center gap-2 mb-1 flex-wrap"><span className={`text-[8px] font-black px-2 py-0.5 rounded uppercase ${item.isActive === false ? 'bg-gray-200 text-gray-500' : 'bg-maroon text-white'}`}>{item.subject}</span><span className={`text-[8px] font-black px-2 py-0.5 rounded uppercase ${item.type === 'mcq' ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'}`}>{item.type === 'mcq' ? 'QCM' : 'Q & A'}</span></div>
+                <div className="flex items-center gap-2 mb-1 flex-wrap">
+                  <span className={`text-[8px] font-black px-2 py-0.5 rounded uppercase ${item.isActive === false ? 'bg-gray-200 text-gray-500' : 'bg-maroon text-white'}`}>{item.subject}</span>
+                  <span className={`text-[8px] font-black px-2 py-0.5 rounded uppercase ${item.type === 'mcq' ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'}`}>{item.type === 'mcq' ? 'QCM' : 'Q & A'}</span>
+                </div>
                 <p className="text-xs font-bold text-gray-700 truncate small-kh">{item.question}</p>
               </div>
               <div className="flex gap-2">
