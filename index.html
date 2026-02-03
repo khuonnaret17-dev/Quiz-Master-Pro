@@ -87,6 +87,16 @@
             to { opacity: 1; transform: translateY(0); }
         }
 
+        /* ចលនាដកដង្ហើមសម្រាប់ប៊ូតុងទំនាក់ទំនង */
+        @keyframes breathing {
+            0%, 100% { transform: scale(1); box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
+            50% { transform: scale(1.05); box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.4); }
+        }
+
+        .animate-breathing {
+            animation: breathing 2s ease-in-out infinite;
+        }
+
         .custom-scrollbar::-webkit-scrollbar { width: 6px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb {

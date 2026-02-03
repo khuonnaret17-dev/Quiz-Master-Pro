@@ -15,3 +15,19 @@ export const TG_CHANNELS = [
   { label: "Khmer Family of Law (@khmerfamilyoflaw)", value: "@khmerfamilyoflaw" },
   { label: "ID: 700259660", value: "700259660" }
 ];
+
+export const ABA_PAYMENT_LINK = "https://aba.onelink.me/oRF8/5eyaceds";
+
+// តំណភ្ជាប់ទំនាក់ទំនង
+export const ADMIN_CONTACTS = {
+  admin1: "https://t.me/Naret26?direct",
+  admin2: "https://t.me/qcm_and_q_a"
+};
+
+export const ADMIN_TELEGRAM_LINK = ADMIN_CONTACTS.admin2; // រក្សានាមករណ៍ចាស់ដើម្បីកុំឱ្យ Error កូដផ្សេងៗ
+
+// គណនីសម្រាប់សមាជិកទូទៅ
+export const MEMBER_ACCOUNTS = [
+  { user: "User", pass: "2026" },
+  { user: "student", pass: "2026" }
+];

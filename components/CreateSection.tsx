@@ -2,7 +2,7 @@
 import * as React from 'react';
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { Question, TelegramConfig } from '../types';
-import { DEFAULT_TG_BOT_TOKEN, TG_CHANNELS } from '../constants';
+import { DEFAULT_TG_BOT_TOKEN, TG_CHANNELS, ADMIN_CONTACTS } from '../constants';
 import html2canvas from 'html2canvas';
 import { validateBot, sendQuizPoll, sendTestMessage, sendQuestionImage } from '../services/telegramService';
 
@@ -957,6 +957,15 @@ const CreateSection: React.FC<CreateSectionProps> = ({
           </div>
         </div>
       )}
+
+      {/* Footer Contact for Admins */}
+      <div className="mt-10 flex flex-col items-center gap-3">
+        <p className="text-[10px] font-black uppercase text-gray-400">ជំនួយបច្ចេកទេស ៖</p>
+        <div className="flex gap-4">
+          <a href={ADMIN_CONTACTS.admin1} target="_blank" className="text-[10px] font-bold text-blue-600 underline small-kh animate-breathing">អ្នកគ្រប់គ្រង</a>
+          <a href={ADMIN_CONTACTS.admin2} target="_blank" className="text-[10px] font-bold text-blue-500 underline small-kh animate-breathing" style={{ animationDelay: '1s' }}>Master Quiz KH</a>
+        </div>
+      </div>
     </div>
   );
 };

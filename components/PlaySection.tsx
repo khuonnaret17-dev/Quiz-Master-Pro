@@ -2,6 +2,7 @@
 import * as React from 'react';
 import { useState, useMemo } from 'react';
 import { Question } from '../types';
+import { ADMIN_CONTACTS } from '../constants';
 
 interface PlaySectionProps {
   quizData: Question[];
@@ -100,7 +101,7 @@ const PlaySection: React.FC<PlaySectionProps> = ({ quizData, onStartQuiz }) => {
   }
 
   return (
-    <div className="animate-fadeIn space-y-8">
+    <div className="animate-fadeIn space-y-8 pb-20">
       {/* Question Detail Modal */}
       {viewingQuestion && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[150] flex items-center justify-center p-4 animate-fadeIn">
@@ -123,7 +124,7 @@ const PlaySection: React.FC<PlaySectionProps> = ({ quizData, onStartQuiz }) => {
             ) : (
               <div className="bg-green-50/50 border-l-8 border-green-500 rounded-r-3xl p-8">
                 <p className="font-black text-green-700 heading-kh text-xl mb-2">ចម្លើយ ៖</p>
-                <div className="text-gray-800 leading-loose small-kh font-medium text-lg whitespace-pre-wrap">{viewingQuestion.answer}</div>
+                <div className="text-gray-800 leading-loose small-kh font-medium text-lg md:text-xl whitespace-pre-wrap">{viewingQuestion.answer}</div>
               </div>
             )}
             <div className="mt-10 flex justify-center">
@@ -273,6 +274,19 @@ const PlaySection: React.FC<PlaySectionProps> = ({ quizData, onStartQuiz }) => {
           )}
         </div>
       )}
+
+      {/* Footer Contact */}
+      <div className="mt-12 flex flex-col items-center gap-5">
+        <p className="text-[11px] font-black uppercase text-gray-400">មានបញ្ហា ឬចង់បើកគណនីបន្ថែម ៖</p>
+        <div className="flex gap-8">
+          <a href={ADMIN_CONTACTS.admin1} target="_blank" className="flex items-center gap-2 text-sm font-bold text-indigo-600 hover:underline small-kh animate-breathing">
+            <span>អ្នកគ្រប់គ្រង</span>
+          </a>
+          <a href={ADMIN_CONTACTS.admin2} target="_blank" className="flex items-center gap-2 text-sm font-bold text-indigo-600 hover:underline small-kh animate-breathing" style={{ animationDelay: '1s' }}>
+            <span>Master Quiz KH</span>
+          </a>
+        </div>
+      </div>
     </div>
   );
 };
