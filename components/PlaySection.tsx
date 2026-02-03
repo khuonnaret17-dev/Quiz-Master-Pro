@@ -15,11 +15,14 @@ const PlaySection: React.FC<PlaySectionProps> = ({ quizData, onStartQuiz }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [viewingQuestion, setViewingQuestion] = useState<Question | null>(null);
   
+  // State សម្រាប់មើលវិញ្ញាសាទាំងស្រុង (Document Viewer)
+  const [viewingFullDoc, setViewingFullDoc] = useState<{name: string, type: string, questions: Question[]} | null>(null);
+  
   // States សម្រាប់ Mixed Mode
   const [playMode, setPlayMode] = useState<'by-subject' | 'mixed'>('by-subject');
   const [selectedMixSubjects, setSelectedMixSubjects] = useState<string[]>([]);
   const [mixCount, setMixCount] = useState<number>(20);
-  
+
   const KHMER_DIGITS = ['០', '១', '២', '៣', '៤', '៥', '៦', '៧', '៨', '៩'];
   const KHMER_PREFIXES = ['ក', 'ខ', 'គ', 'ឃ'];
   
@@ -39,19 +42,17 @@ const PlaySection: React.FC<PlaySectionProps> = ({ quizData, onStartQuiz }) => {
 
   const handleStartMixedTest = () => {
     if (selectedMixSubjects.length === 0) return alert("សូមជ្រើសរើសមុខវិជ្ជាយ៉ាងហោចណាស់មួយ!");
-    
-    // ចាប់យកសំណួរពីមុខវិជ្ជាដែលបានជ្រើសរើស
     let pool = activeQuestions.filter(q => q.type === activeType && selectedMixSubjects.includes(q.subject));
-    
-    // Shuffle pool
     const shuffled = [...pool].sort(() => Math.random() - 0.5);
-    
-    // កាត់យកតាមចំនួនដែលចង់បាន
     const selected = shuffled.slice(0, mixCount);
-    
     if (selected.length === 0) return alert("មិនមានសំណួរក្នុងមុខវិជ្ជាដែលបានជ្រើសរើសឡើយ!");
-    
     onStartQuiz("តេស្តចម្រុះ", 0, activeType, selected, true);
+  };
+
+  const handleViewFullDoc = (subjectName: string) => {
+    const questions = activeQuestions.filter(q => q.subject === subjectName && q.type === activeType);
+    if (questions.length === 0) return alert("មិនមានសំណួរក្នុងមុខវិជ្ជានេះឡើយ!");
+    setViewingFullDoc({ name: subjectName, type: activeType, questions });
   };
 
   const searchResults = useMemo(() => {
@@ -75,10 +76,16 @@ const PlaySection: React.FC<PlaySectionProps> = ({ quizData, onStartQuiz }) => {
           <button onClick={() => setSelectedSubject(null)} className="p-5 bg-maroon/5 hover:bg-maroon hover:text-white rounded-2xl transition-all active:scale-90 shrink-0 shadow-sm">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M15 19l-7-7 7-7" /></svg>
           </button>
-          <div className="text-center md:text-left">
+          <div className="text-center md:text-left flex-1">
             <h2 className="text-3xl font-black heading-kh text-maroon">{selectedSubject}</h2>
             <p className="text-sm small-kh text-gray-500 mt-1">ប្រភេទ៖ {activeType === 'mcq' ? 'QCM' : 'Q & A'} (ភាគនីមួយៗមាន ១០ សំណួរ)</p>
           </div>
+          <button 
+            onClick={() => handleViewFullDoc(selectedSubject)} 
+            className="px-6 py-3 bg-indigo-600 text-white rounded-xl font-black heading-kh text-sm shadow-lg hover:bg-indigo-700 transition-all flex items-center gap-2"
+          >
+            👁️ មើលវិញ្ញាសាទាំងស្រុង
+          </button>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
@@ -102,7 +109,98 @@ const PlaySection: React.FC<PlaySectionProps> = ({ quizData, onStartQuiz }) => {
 
   return (
     <div className="animate-fadeIn space-y-8 pb-20">
-      {/* Question Detail Modal */}
+      {/* Full Document Viewer Modal */}
+      {viewingFullDoc && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[200] flex items-center justify-center p-4 md:p-10 animate-fadeIn">
+          <div className="bg-white w-full max-w-5xl h-full rounded-[2.5rem] shadow-2xl flex flex-col relative overflow-hidden">
+            {/* Header of Modal */}
+            <div className="p-6 border-b flex justify-between items-center bg-gray-50">
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">📄</span>
+                <h3 className="text-xl font-black heading-kh text-maroon">វិញ្ញាសា៖ {viewingFullDoc.name}</h3>
+              </div>
+              <button 
+                onClick={() => setViewingFullDoc(null)} 
+                className="w-12 h-12 flex items-center justify-center bg-maroon text-white rounded-2xl hover:brightness-110 transition-all shadow-lg"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Document Content */}
+            <div className="flex-1 overflow-y-auto p-8 md:p-16 custom-scrollbar bg-white">
+              <div className="max-w-4xl mx-auto small-kh text-black">
+                {/* Kingdom Header */}
+                <div className="border-[1.5pt] border-black p-8 mb-12 rounded-lg">
+                  <div className="flex flex-col md:flex-row justify-between items-center text-center gap-6">
+                    <div className="md:w-[45%]">
+                      <h1 className="text-[16pt] font-bold heading-kh mb-1 leading-[2.2]">ព្រះរាជាណាចក្រកម្ពុជា</h1>
+                      <h2 className="text-[14pt] font-bold heading-kh mb-2 leading-[2.0]">ជាតិ សាសនា ព្រះមហាក្សត្រ</h2>
+                      <div className="flex justify-center mb-4"><div className="w-20 h-[1.5px] bg-black"></div></div>
+                      <h3 className="text-[12pt] font-bold heading-kh text-maroon/80">Master Quiz KH</h3>
+                    </div>
+                    <div className="md:w-[50%] pt-2">
+                      <h3 className="text-[18pt] font-bold heading-kh mb-3 leading-[2.2] border-b-2 border-black pb-2">វិញ្ញាសា៖ {viewingFullDoc.name}</h3>
+                      <div className="text-center md:text-left space-y-2 mt-4 inline-block md:block">
+                        <p className="text-[11pt] font-bold flex items-center gap-2">🔹 ប្រភេទ៖ {viewingFullDoc.type === 'mcq' ? 'ពហុចម្លើយ (QCM)' : 'សំណួរចម្លើយ (Q&A)'}</p>
+                        <p className="text-[11pt] font-bold flex items-center gap-2">🔹 ចំនួន៖ {toKhmerNumeral(viewingFullDoc.questions.length)} សំណួរ</p>
+                        <p className="text-[11pt] font-bold flex items-center gap-2">🔹 កាលបរិច្ឆេទ៖ {new Date().toLocaleDateString('km-KH')}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Question List */}
+                <div className="space-y-12">
+                  {viewingFullDoc.questions.map((q, idx) => (
+                    <div key={idx} className="pb-6 border-b border-gray-100 last:border-0">
+                      <div className="flex gap-5 mb-5 items-start">
+                        <span className="font-black text-[14pt] text-maroon pt-1">{toKhmerNumeral(idx + 1)}.</span>
+                        <h4 className="text-[15pt] font-black heading-kh leading-[2.2] flex-1 text-justify">{q.question}</h4>
+                      </div>
+                      {q.type === 'mcq' ? (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 ml-12">
+                          {q.options?.map((opt, oIdx) => (
+                            <div key={oIdx} className={`flex gap-5 items-center p-3 rounded-xl border ${oIdx === q.correct ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-transparent'}`}>
+                              <span className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold shrink-0 ${oIdx === q.correct ? 'bg-green-500 text-white' : 'bg-white border text-maroon'}`}>
+                                {KHMER_PREFIXES[oIdx]}
+                              </span>
+                              <span className={`text-[12pt] ${oIdx === q.correct ? 'font-bold text-green-800' : 'text-gray-700'}`}>{opt}</span>
+                              {oIdx === q.correct && <span className="ml-auto text-green-600">✓</span>}
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="ml-12 mt-4 p-6 border-l-8 border-green-500 bg-green-50/30 rounded-r-2xl">
+                          <p className="text-[10pt] font-black mb-3 uppercase text-green-700">ចម្លើយ ៖</p>
+                          <p className="text-[13pt] leading-[2.2] text-justify whitespace-pre-wrap text-gray-800">{q.answer}</p>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Document Footer */}
+                <div className="mt-20 pt-10 border-t-2 border-dashed border-gray-200 text-center opacity-50">
+                  <p className="text-[11pt] italic">--- រៀបរៀងដោយ Master Quiz KH - គ្រប់គ្រងដោយគ្រូផ្ទាល់ ---</p>
+                </div>
+              </div>
+            </div>
+            
+            {/* Modal Bottom Action */}
+            <div className="p-6 bg-gray-50 border-t flex justify-center">
+              <button 
+                onClick={() => setViewingFullDoc(null)} 
+                className="px-12 py-4 bg-maroon text-white font-black rounded-full shadow-xl hover:scale-105 transition-all heading-kh"
+              >
+                យល់ព្រម និងបិទវិញ
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Question Detail Modal (for individual clicks) */}
       {viewingQuestion && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[150] flex items-center justify-center p-4 animate-fadeIn">
           <div className="glass-card w-full max-w-2xl rounded-[3rem] p-8 md:p-12 shadow-2xl border-2 border-white relative max-h-[90vh] overflow-y-auto custom-scrollbar">
@@ -151,7 +249,6 @@ const PlaySection: React.FC<PlaySectionProps> = ({ quizData, onStartQuiz }) => {
           </button>
         </div>
 
-        {/* Search Bar only for By-Subject or Hidden in Mixed */}
         {playMode === 'by-subject' && (
           <div className="w-full max-w-2xl relative group">
             <input 
@@ -176,7 +273,6 @@ const PlaySection: React.FC<PlaySectionProps> = ({ quizData, onStartQuiz }) => {
             <h3 className="text-2xl font-black heading-kh text-maroon mb-8 text-center">រៀបចំវិញ្ញាសាចម្រុះ</h3>
             
             <div className="space-y-8">
-              {/* Type Toggle */}
               <div className="flex justify-center">
                 <div className="flex bg-gray-100 p-1 rounded-2xl">
                   <button onClick={() => setActiveType('mcq')} className={`px-6 py-2 rounded-xl text-xs font-black transition-all ${activeType === 'mcq' ? 'bg-white text-blue-700 shadow-sm' : 'text-gray-400'}`}>QCM</button>
@@ -184,7 +280,6 @@ const PlaySection: React.FC<PlaySectionProps> = ({ quizData, onStartQuiz }) => {
                 </div>
               </div>
 
-              {/* Subject Selection Grid */}
               <div className="space-y-4">
                 <label className="text-[10px] font-black uppercase text-gray-400 block ml-2">ជ្រើសរើសមុខវិជ្ជា (ជ្រើសបានលើសពីមួយ)</label>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -203,7 +298,6 @@ const PlaySection: React.FC<PlaySectionProps> = ({ quizData, onStartQuiz }) => {
                 </div>
               </div>
 
-              {/* Count Selection */}
               <div className="space-y-4">
                 <label className="text-[10px] font-black uppercase text-gray-400 block ml-2">ចំនួនសំណួរដែលត្រូវបង្ហាញ</label>
                 <div className="flex flex-wrap gap-3">
@@ -231,7 +325,6 @@ const PlaySection: React.FC<PlaySectionProps> = ({ quizData, onStartQuiz }) => {
           </div>
         </div>
       ) : (
-        /* Original By-Subject View */
         <div className="space-y-8">
           <div className="flex justify-center gap-4 mb-4">
             <button onClick={() => setActiveType('mcq')} className={`px-8 py-3 rounded-full font-black heading-kh text-sm transition-all ${activeType === 'mcq' ? 'bg-maroon text-white shadow-md' : 'bg-white/40 text-gray-500'}`}>QCM</button>
@@ -253,15 +346,21 @@ const PlaySection: React.FC<PlaySectionProps> = ({ quizData, onStartQuiz }) => {
                 {subjects.map((sub: string, i: number) => {
                   const count = activeQuestions.filter(q => q.subject === sub && q.type === activeType).length;
                   return (
-                    <button key={i} onClick={() => setSelectedSubject(sub)} className="glass-card p-10 rounded-[3rem] text-center transition-all border-4 border-transparent hover:border-maroon/20 hover:shadow-2xl group flex flex-col items-center shadow-lg">
-                      <div className="w-20 h-20 bg-maroon/5 rounded-[2rem] flex items-center justify-center text-4xl mb-6 group-hover:scale-110 transition-transform">
-                        {activeType === 'mcq' ? '📑' : '🖊️'}
+                    <div key={i} className="glass-card p-10 rounded-[3rem] text-center transition-all border-4 border-transparent hover:border-maroon/20 hover:shadow-2xl group flex flex-col items-center shadow-lg relative">
+                      <div onClick={() => setSelectedSubject(sub)} className="cursor-pointer w-full flex flex-col items-center">
+                        <div className="w-20 h-20 bg-maroon/5 rounded-[2rem] flex items-center justify-center text-4xl mb-6 group-hover:scale-110 transition-transform">
+                          {activeType === 'mcq' ? '📑' : '🖊️'}
+                        </div>
+                        <h3 className="text-2xl font-black mb-3 heading-kh !text-maroon">{sub}</h3>
+                        <div className={`flex items-center gap-2 font-black text-[10px] px-5 py-2 rounded-full text-white shadow-md ${activeType === 'mcq' ? 'bg-blue-600' : 'bg-orange-600'}`}>
+                          <span>មាន {toKhmerNumeral(count)} សំណួរ</span>
+                        </div>
                       </div>
-                      <h3 className="text-2xl font-black mb-3 heading-kh !text-maroon">{sub}</h3>
-                      <div className={`flex items-center gap-2 font-black text-[10px] px-5 py-2 rounded-full text-white shadow-md ${activeType === 'mcq' ? 'bg-blue-600' : 'bg-orange-600'}`}>
-                        <span>មាន {toKhmerNumeral(count)} សំណួរ</span>
+                      <div className="mt-6 w-full pt-6 border-t border-gray-100 flex gap-2">
+                        <button onClick={() => setSelectedSubject(sub)} className="flex-2 py-3 bg-maroon text-white rounded-xl font-black heading-kh text-[10px] uppercase shadow-md hover:brightness-110">ចូលធ្វើតេស្ត 🚀</button>
+                        <button onClick={() => handleViewFullDoc(sub)} className="flex-1 py-3 bg-indigo-50 text-indigo-600 rounded-xl font-black heading-kh text-[10px] uppercase shadow-sm hover:bg-indigo-600 hover:text-white">👁️ មើលវិញ្ញាសា</button>
                       </div>
-                    </button>
+                    </div>
                   );
                 })}
               </div>

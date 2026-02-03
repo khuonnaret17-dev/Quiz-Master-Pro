@@ -209,7 +209,7 @@ const App: React.FC = () => {
                 type={activeQuiz.type}
                 allSubjectQuestions={activeQuiz.customQuestions || quizData.filter(q => q.subject === activeQuiz.subject && q.type === activeQuiz.type)}
                 onExit={() => setActiveQuiz(null)}
-                onStartNextPart={activeQuiz.isMixed ? undefined : (newPartIndex) => {
+                onStartNextPart={(newPartIndex) => {
                   setActiveQuiz(prev => prev ? { ...prev, partIndex: newPartIndex } : null);
                   window.scrollTo({ top: 0, behavior: 'smooth' });
                 }}

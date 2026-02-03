@@ -465,41 +465,78 @@ const CreateSection: React.FC<CreateSectionProps> = ({
 
   const handleBulkSubmit = () => {
     if (!subject.trim() || !bulkText.trim()) return alert("សូមបំពេញព័ត៌មាន!");
-    const lines = bulkText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+    const lines = bulkText.split('\n');
     const parsed: Question[] = [];
-    let cur: Partial<Question> | null = null;
+    let currentQuestion: Partial<Question> | null = null;
+    let isReadingAnswer = false;
+
     if (bulkType === 'mcq') {
       lines.forEach(line => {
-        const qMatch = line.match(/^[០-៩0-9]+\.\s*(.*)/);
+        const trimmed = line.trim();
+        if (!trimmed) return;
+
+        const qMatch = trimmed.match(/^[០-៩0-9]+\.\s*(.*)/);
         if (qMatch) {
-          if (cur && cur.question && cur.options && cur.options.length >= 2) parsed.push(cur as Question);
-          cur = { type: 'mcq', subject: subject.trim(), question: qMatch[1].trim(), options: [], correct: 0, isActive: true };
+          if (currentQuestion && currentQuestion.question && currentQuestion.options && currentQuestion.options.length >= 2) {
+            parsed.push(currentQuestion as Question);
+          }
+          currentQuestion = { type: 'mcq', subject: subject.trim(), question: qMatch[1].trim(), options: [], correct: 0, isActive: true };
           return;
         }
-        const oMatch = line.match(/^[កខគឃ]\.\s*(.*)/);
-        if (oMatch && cur && cur.type === 'mcq') {
+
+        const oMatch = trimmed.match(/^[កខគឃ]\.\s*(.*)/);
+        if (oMatch && currentQuestion && currentQuestion.type === 'mcq') {
           let text = oMatch[1].replace('(ចម្លើយត្រឹមត្រូវ)', '').trim();
-          if (!cur.options) cur.options = [];
-          cur.options.push(text);
-          if (oMatch[1].includes('(ចម្លើយត្រឹមត្រូវ)')) cur.correct = cur.options.length - 1;
+          if (!currentQuestion.options) currentQuestion.options = [];
+          currentQuestion.options.push(text);
+          if (oMatch[1].includes('(ចម្លើយត្រឹមត្រូវ)')) currentQuestion.correct = currentQuestion.options.length - 1;
         }
       });
-      if (cur && cur.question && cur.options && cur.options.length >= 2) parsed.push(cur as Question);
+      if (currentQuestion && currentQuestion.question && currentQuestion.options && currentQuestion.options.length >= 2) {
+        parsed.push(currentQuestion as Question);
+      }
     } else {
+      // Logic ថ្មីសម្រាប់ Q & A ៖ ស្គាល់ច្រើនទម្រង់ និងបញ្ជីរាយនាម
       lines.forEach(line => {
-        const qMatch = line.match(/^[០-៩0-9]+\.\s*(.*)/);
+        const trimmedLine = line.trim();
+        if (trimmedLine === "" && !isReadingAnswer) return;
+
+        // ស្គាល់សំណួរ៖ ១. ឬ 1.
+        const qMatch = trimmedLine.match(/^[០-៩0-9]+\.\s*(.*)/);
         if (qMatch) {
-          if (cur && cur.question && cur.answer) parsed.push(cur as Question);
-          cur = { type: 'short', subject: subject.trim(), question: qMatch[1].trim(), answer: '', isActive: true };
+          if (currentQuestion && currentQuestion.question && currentQuestion.answer) {
+            parsed.push(currentQuestion as Question);
+          }
+          currentQuestion = { type: 'short', subject: subject.trim(), question: qMatch[1].trim(), answer: '', isActive: true };
+          isReadingAnswer = false;
           return;
         }
-        const aMatch = line.match(/^ចម្លើយ\s*[៖:]\s*(.*)/);
-        if (aMatch && cur && cur.type === 'short') cur.answer = aMatch[1].trim();
+
+        // ស្គាល់ការចាប់ផ្ដើមចម្លើយ៖ ចម្លើយ ៖ ឬ ចម្លើយ :
+        const aStartMatch = trimmedLine.match(/^ចម្លើយ\s*[៖:]\s*(.*)/);
+        if (aStartMatch && currentQuestion) {
+          currentQuestion.answer = aStartMatch[1].trim();
+          isReadingAnswer = true;
+          return;
+        }
+
+        // បើកំពុងអានចម្លើយ ហើយមិនមែនជាសំណួរថ្មី គឺបូកចូលចម្លើយបន្តបន្ទាប់ (រក្សាទម្រង់បញ្ជី)
+        if (isReadingAnswer && currentQuestion) {
+          currentQuestion.answer += (currentQuestion.answer ? '\n' : '') + line; // ប្រើ line (មិន trimmed) ដើម្បីរក្សាការដកឃ្លាបញ្ជី
+        }
       });
-      if (cur && cur.question && cur.answer) parsed.push(cur as Question);
+      if (currentQuestion && currentQuestion.question && currentQuestion.answer) {
+        parsed.push(currentQuestion as Question);
+      }
     }
-    if (parsed.length > 0) { onBatchAdd(parsed); setBulkText(''); alert(`បានបញ្ចូល ${parsed.length} សំណួរដោយជោគជ័យ!`); } 
-    else alert("រកមិនឃើញទម្រង់សំណួរត្រឹមត្រូវ!");
+
+    if (parsed.length > 0) { 
+      onBatchAdd(parsed); 
+      setBulkText(''); 
+      alert(`បានបញ្ចូល ${parsed.length} សំណួរដោយជោគជ័យ!`); 
+    } else {
+      alert("រកមិនឃើញទម្រង់សំណួរត្រឹមត្រូវ! សូមពិនិត្យមើលទ្រង់ទ្រាយអត្ថបទរបស់អ្នកម្តងទៀត។");
+    }
   };
 
   const handleExportData = () => {
@@ -669,7 +706,7 @@ const CreateSection: React.FC<CreateSectionProps> = ({
                   {q.type === 'mcq' ? (
                     <div className="grid grid-cols-1 gap-4 ml-12">
                       {q.options?.map((opt, oIdx) => (
-                        <div key={idx} className="flex gap-5 items-start text-[12pt] leading-[1.8]">
+                        <div key={oIdx} className="flex gap-5 items-start text-[12pt] leading-[1.8]">
                           <span className="font-bold">{KHMER_PREFIXES[oIdx]}.</span>
                           <span className="flex-1">{opt}</span>
                         </div>
@@ -753,7 +790,6 @@ const CreateSection: React.FC<CreateSectionProps> = ({
         </div>
       )}
 
-      {/* Entry UI Tabs */}
       <div className="glass-card rounded-[2.5rem] shadow-xl p-8 border border-white/50">
         <div className="flex border-b border-gray-100 mb-8 -mx-8 px-8 overflow-x-auto custom-scrollbar">
           <button onClick={() => { setEntryMode('single'); setViewingSubjectQuestions(null); }} className={`pb-4 px-8 font-black heading-kh text-sm transition-all border-b-4 shrink-0 ${entryMode === 'single' ? 'border-maroon text-maroon' : 'border-transparent text-gray-400 hover:text-gray-600'}`}>✍️ បញ្ចូលសំណួរ</button>
@@ -805,7 +841,6 @@ const CreateSection: React.FC<CreateSectionProps> = ({
 
         {entryMode === 'subjects' && (
           <div className="space-y-12 animate-fadeIn">
-            {/* Subject Questions Focused View Header */}
             {viewingSubjectQuestions && (
               <div className="bg-white p-6 rounded-[2rem] border-2 border-blue-100 shadow-md animate-fadeIn flex items-center justify-between">
                 <div className="flex items-center gap-4">
@@ -877,7 +912,6 @@ const CreateSection: React.FC<CreateSectionProps> = ({
               </>
             )}
 
-            {/* List section focused on a subject's questions */}
             {viewingSubjectQuestions && (
               <div className="animate-fadeIn space-y-4">
                 <div className="space-y-4 max-h-[800px] overflow-y-auto pr-2 custom-scrollbar">
@@ -916,7 +950,6 @@ const CreateSection: React.FC<CreateSectionProps> = ({
         )}
       </div>
 
-      {/* General List section (Shown when not in focus mode) */}
       {!viewingSubjectQuestions && entryMode !== 'subjects' && (
         <div className="glass-card rounded-[2.5rem] shadow-lg p-8 border border-white/50 mt-10">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
@@ -958,7 +991,6 @@ const CreateSection: React.FC<CreateSectionProps> = ({
         </div>
       )}
 
-      {/* Footer Contact for Admins */}
       <div className="mt-10 flex flex-col items-center gap-3">
         <p className="text-[10px] font-black uppercase text-gray-400">ជំនួយបច្ចេកទេស ៖</p>
         <div className="flex gap-4">
