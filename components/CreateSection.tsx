@@ -186,7 +186,7 @@ const CreateSection: React.FC<CreateSectionProps> = ({
           
           canvas.toBlob(async (blob) => {
             if (blob) {
-              const caption = `វិញ្ញាសា៖ ${q.subject}\nប្រភេទ៖ ${q.type === 'mcq' ? 'QCM' : 'Q & A'}\n\n━━✥━━✥◈✥━━✥━━\nTelegram Channel​ : 👇🏻\n🔗 https://t.me/khmerfamilyoflaw\n🔗 https://t.me/Naret26\nTelegram Group : 👇🏻\n🔗 https://t.me/familyoflaw\n🔗 https://t.me/theAdvisor26`;
+              const caption = `❓ សំណួរ៖ ${q.question}\n\n📲កម្មវិធីត្រៀមប្រឡងក្របខ័ណ្ឌ https://t.me/qiuzs_bot\n━━✥━━✥◈✥━━✥━━\nTelegram Channel​ : 👇🏻\n🔗 https://t.me/khmerfamilyoflaw\n🔗 https://t.me/Naret26\nTelegram Group : 👇🏻\n🔗 https://t.me/familyoflaw\n🔗 https://t.me/theAdvisor26`;
               const result = await sendQuestionImage(tgConfig, blob, caption);
               
               if (result.ok) alert("រូបភាពត្រូវបានផ្ញើទៅ Telegram រួចរាល់!");
@@ -669,7 +669,7 @@ const CreateSection: React.FC<CreateSectionProps> = ({
                   {q.type === 'mcq' ? (
                     <div className="grid grid-cols-1 gap-4 ml-12">
                       {q.options?.map((opt, oIdx) => (
-                        <div key={oIdx} className="flex gap-5 items-start text-[12pt] leading-[1.8]">
+                        <div key={idx} className="flex gap-5 items-start text-[12pt] leading-[1.8]">
                           <span className="font-bold">{KHMER_PREFIXES[oIdx]}.</span>
                           <span className="flex-1">{opt}</span>
                         </div>
@@ -939,7 +939,7 @@ const CreateSection: React.FC<CreateSectionProps> = ({
                 <div className="flex gap-2">
                   <div className="flex gap-1">
                     {item.type === 'mcq' && (
-                      <button title="ផ្ញើជា Poll (QCM) ទៅ Telegram" disabled={isSendingToTg !== null || isSendingImageToTg !== null} onClick={() => handleSendToTelegram(item, item.originalIndex)} className={`p-3 rounded-xl transition-all shadow-md ${isSendingToTg === item.originalIndex ? 'bg-blue-100 animate-pulse' : 'bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white'}`}>
+                      <button title="ផ្ញើជា Poll (QCM)ទៅ Telegram" disabled={isSendingToTg !== null || isSendingImageToTg !== null} onClick={() => handleSendToTelegram(item, item.originalIndex)} className={`p-3 rounded-xl transition-all shadow-md ${isSendingToTg === item.originalIndex ? 'bg-blue-100 animate-pulse' : 'bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white'}`}>
                         {isSendingToTg === item.originalIndex ? '⏳' : '✈️'}
                       </button>
                     )}
