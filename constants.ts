@@ -25,9 +25,3 @@ export const ADMIN_CONTACTS = {
 };
 
 export const ADMIN_TELEGRAM_LINK = ADMIN_CONTACTS.admin2; // រក្សានាមករណ៍ចាស់ដើម្បីកុំឱ្យ Error កូដផ្សេងៗ
-
-// គណនីសម្រាប់សមាជិកទូទៅ
-export const MEMBER_ACCOUNTS = [
-  { user: "User", pass: "2026" },
-  { user: "student", pass: "2026" }
-];

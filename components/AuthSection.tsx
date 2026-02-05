@@ -2,7 +2,7 @@
 import * as React from 'react';
 import { useState } from 'react';
 import { UserRole } from '../types';
-import { ADMIN_CONTACTS, MEMBER_ACCOUNTS, SECRET_CODE } from '../constants';
+import { ADMIN_CONTACTS, SECRET_CODE } from '../constants';
 
 interface AuthSectionProps {
   onLogin: (role: UserRole) => void;
@@ -23,11 +23,23 @@ const AuthSection: React.FC<AuthSectionProps> = ({ onLogin, secretCode }) => {
   };
 
   const handleUserVerify = () => {
-    const found = MEMBER_ACCOUNTS.find(acc => acc.user === userInput && acc.pass === passInput);
-    if (found) {
+    const trimmedUser = userInput.trim();
+    
+    // លក្ខខណ្ឌ ១៖ Username មិនអាចទទេ
+    if (!trimmedUser) {
+      alert("សូមបញ្ចូល Username!");
+      return;
+    }
+
+    // លក្ខខណ្ឌ ២៖ Password ត្រូវមាន ៦ខ្ទង់ ផ្ដើមដោយ ២០ និង បញ្ចប់ដោយ ២៦
+    const isValidPassword = passInput.length === 6 && 
+                            passInput.startsWith('20') && 
+                            passInput.endsWith('26');
+
+    if (isValidPassword) {
       onLogin('user');
     } else {
-      alert("ឈ្មោះអ្នកប្រើប្រាស់ ឬលេខសម្ងាត់មិនត្រឹមត្រូវ!");
+      alert("Password មិនត្រឹមត្រូវ! ត្រូវមាន ៦ខ្ទង់ និងផ្ដើមដោយ ២០...២៦ (ឧទាហរណ៍៖ ២០០១២៦)");
     }
   };
 
@@ -102,26 +114,27 @@ const AuthSection: React.FC<AuthSectionProps> = ({ onLogin, secretCode }) => {
         <div className="glass-card rounded-[3rem] shadow-2xl p-10 md:p-12 text-center border-2 border-white animate-fadeIn relative">
           {renderBackButton()}
           <div className="text-6xl mb-6">🔑</div>
-          <h2 className="text-2xl font-black heading-kh text-indigo-900 mb-2">ចូលគណនីសមាជិក</h2>
-          <p className="text-xs small-kh text-gray-400 mb-8">សូមបញ្ចូលគណនីសមាជិកដើម្បីចាប់ផ្ដើម</p>
-          <div className="space-y-4 mb-8 text-left">
+          <h2 className="text-2xl font-black heading-kh text-indigo-900 mb-2">Login</h2>
+          <p className="text-xs small-kh text-gray-400 mb-8">សូមបញ្ចូល Username និង Password ដើម្បីចាប់ផ្ដើម</p>
+          <div className="space-y-5 mb-8 text-left">
             <div>
-              <label className="text-[10px] font-black uppercase text-gray-400 ml-4 mb-1 block">ឈ្មោះអ្នកប្រើប្រាស់</label>
+              <label className="text-[11px] font-black uppercase text-indigo-900 ml-4 mb-2 block">Username</label>
               <input 
                 type="text" 
                 value={userInput} 
                 onChange={(e) => setUserInput(e.target.value)} 
-                className="w-full px-6 py-4 rounded-2xl border border-gray-100 bg-gray-50/50 outline-none focus:ring-4 focus:ring-indigo-500/10 focus:bg-white transition-all small-kh font-bold" 
+                className="w-full px-6 py-4 rounded-2xl border border-gray-100 bg-gray-50/50 outline-none focus:ring-4 focus:ring-indigo-500/10 focus:bg-white transition-all font-bold text-indigo-900" 
                 placeholder="Username" 
               />
             </div>
             <div>
-              <label className="text-[10px] font-black uppercase text-gray-400 ml-4 mb-1 block">លេខសម្ងាត់</label>
+              <label className="text-[11px] font-black uppercase text-indigo-900 ml-4 mb-2 block">Password</label>
               <input 
-                type="password" 
+                type="text" 
+                inputMode="numeric"
                 value={passInput} 
-                onChange={(e) => setPassInput(e.target.value)} 
-                className="w-full px-6 py-4 rounded-2xl border border-gray-100 bg-gray-50/50 outline-none focus:ring-4 focus:ring-indigo-500/10 focus:bg-white transition-all small-kh font-bold" 
+                onChange={(e) => setPassInput(e.target.value.replace(/\D/g, '').slice(0, 6))} 
+                className="w-full px-6 py-4 rounded-2xl border border-gray-100 bg-gray-50/50 outline-none focus:ring-4 focus:ring-indigo-500/10 focus:bg-white transition-all font-bold tracking-widest text-indigo-900" 
                 placeholder="Password" 
                 onKeyDown={(e) => e.key === 'Enter' && handleUserVerify()} 
               />
@@ -140,7 +153,7 @@ const AuthSection: React.FC<AuthSectionProps> = ({ onLogin, secretCode }) => {
         <div className="glass-card rounded-[3rem] shadow-2xl p-10 md:p-12 text-center border-2 border-white animate-fadeIn relative">
           {renderBackButton()}
           <div className="text-6xl mb-6">🔒</div>
-          <h2 className="text-2xl font-black heading-kh text-maroon mb-2">ផ្ទៀងផ្ទាត់អ្នកគ្រប់គ្រង</h2>
+          <h2 className="text-2xl font-black heading-kh text-maroon mb-2">Admin Login</h2>
           <p className="text-xs small-kh text-gray-400 mb-8">សូមបញ្ចូលលេខកូដសម្ងាត់សម្រាប់ Admin</p>
           <input 
             type="password" 
