@@ -39,7 +39,7 @@ const AuthSection: React.FC<AuthSectionProps> = ({ onLogin, secretCode }) => {
     if (isValidPassword) {
       onLogin('user', trimmedUser);
     } else {
-      alert("Password មិនត្រឹមត្រូវ! ត្រូវមាន ៦ខ្ទង់ និងផ្ដើមដោយ ២០...២៦ (ឧទាហរណ៍៖ ២០០១២៦)");
+      alert("Password មិនត្រឹមត្រូវ!");
     }
   };
 
