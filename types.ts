@@ -9,6 +9,13 @@ export interface Question {
   isActive?: boolean;
 }
 
+export interface Feedback {
+  id?: string;
+  username: string;
+  text: string;
+  createdAt: string;
+}
+
 export type AppMode = 'play' | 'create';
 export type UserRole = 'user' | 'admin' | null;
 

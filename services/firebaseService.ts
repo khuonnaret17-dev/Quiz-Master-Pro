@@ -1,7 +1,7 @@
 
 import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
-import { initializeFirestore, doc, setDoc, onSnapshot, Firestore, getFirestore } from 'firebase/firestore';
-import { Question } from '../types';
+import { initializeFirestore, doc, setDoc, onSnapshot, Firestore, getFirestore, collection, addDoc, query, orderBy, deleteDoc } from 'firebase/firestore';
+import { Question, Feedback } from '../types';
 
 const firebaseConfig = {
   apiKey: "AIzaSyDw5UkwT6ab4rlel-g6KSmaKM9MgjUnIOs",
@@ -41,7 +41,7 @@ export const initFirebase = (): Firestore | null => {
 };
 
 /**
- * មុខងារសម្អាតទិន្នន័យឱ្យទៅជា Plain Data សុទ្ធសាធមុនពេលផ្ញើទៅ Firebase
+ * មុខងារសម្រាប់ Questions
  */
 const prepareDataForFirestore = (questions: Question[]): any[] => {
   if (!Array.isArray(questions)) return [];
@@ -113,4 +113,47 @@ export const listenToQuestions = (
       onError(error);
     }
   );
+};
+
+/**
+ * មុខងារថ្មីសម្រាប់មតិយោបល់ (Feedback)
+ */
+export const sendFeedback = async (username: string, text: string) => {
+  const database = initFirebase();
+  if (!database) return;
+  try {
+    const feedbackCol = collection(database, 'feedback');
+    await addDoc(feedbackCol, {
+      username,
+      text,
+      createdAt: new Date().toISOString()
+    });
+  } catch (e) {
+    console.error("Error sending feedback:", e);
+  }
+};
+
+export const listenToFeedback = (onUpdate: (feedback: Feedback[]) => void) => {
+  const database = initFirebase();
+  if (!database) return () => {};
+  const feedbackCol = collection(database, 'feedback');
+  const q = query(feedbackCol, orderBy('createdAt', 'desc'));
+  
+  return onSnapshot(q, (snapshot) => {
+    const fbList = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    })) as Feedback[];
+    onUpdate(fbList);
+  });
+};
+
+export const removeFeedback = async (id: string) => {
+  const database = initFirebase();
+  if (!database) return;
+  try {
+    await deleteDoc(doc(database, 'feedback', id));
+  } catch (e) {
+    console.error("Error deleting feedback:", e);
+  }
 };

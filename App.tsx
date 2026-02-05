@@ -1,19 +1,21 @@
 
 import * as React from 'react';
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Question, AppMode, SelectedQuizInfo, UserRole } from './types';
+import { Question, AppMode, SelectedQuizInfo, UserRole, Feedback } from './types';
 import { INITIAL_QUESTIONS, SECRET_CODE } from './constants';
 import Header from './components/Header';
 import AuthSection from './components/AuthSection';
 import CreateSection from './components/CreateSection';
 import PlaySection from './components/PlaySection';
 import QuizGame from './components/QuizGame';
-import { initFirebase, syncQuestionsToFirebase, listenToQuestions } from './services/firebaseService';
+import { initFirebase, syncQuestionsToFirebase, listenToQuestions, listenToFeedback, removeFeedback } from './services/firebaseService';
 
 const App: React.FC = () => {
   const [quizData, setQuizData] = useState<Question[]>([]);
+  const [feedbackList, setFeedbackList] = useState<Feedback[]>([]);
   const [mode, setMode] = useState<AppMode>('play');
   const [userRole, setUserRole] = useState<UserRole>(null);
+  const [username, setUsername] = useState<string>('');
   const [activeQuiz, setActiveQuiz] = useState<SelectedQuizInfo | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
   const [isCloudConnected, setIsCloudConnected] = useState<boolean | 'error'>(false);
@@ -28,7 +30,6 @@ const App: React.FC = () => {
       .map(q => {
         const type = q.type === 'short' ? 'short' : 'mcq';
         
-        // បង្កើត Object ថ្មីដែលយកតែតម្លៃមូលដ្ឋាន (Primitive values)
         if (type === 'mcq') {
           return {
             subject: String(q.subject || 'មិនមានមុខវិជ្ជា'),
@@ -79,7 +80,7 @@ const App: React.FC = () => {
       }
     }
 
-    const unsubscribe = listenToQuestions(
+    const unsubscribeQuestions = listenToQuestions(
       (remoteData) => {
         const cleaned = sanitizeQuestions(remoteData);
         setQuizData(cleaned);
@@ -98,16 +99,24 @@ const App: React.FC = () => {
       }
     );
 
+    let unsubscribeFeedback = () => {};
+    if (userRole === 'admin') {
+      unsubscribeFeedback = listenToFeedback((fbs) => {
+        setFeedbackList(fbs);
+      }) || (() => {});
+    }
+
     const timer = setTimeout(() => { 
       if (!isInitialized) setIsInitialized(true); 
     }, 5000);
     
     return () => { 
-      unsubscribe(); 
+      unsubscribeQuestions(); 
+      unsubscribeFeedback();
       clearTimeout(timer);
       isListeningRef.current = false;
     };
-  }, [sanitizeQuestions, saveToLocal, isInitialized, quizData.length]);
+  }, [sanitizeQuestions, saveToLocal, isInitialized, quizData.length, userRole]);
 
   const handleSyncData = (newData: Question[]) => {
     const sanitized = sanitizeQuestions(newData);
@@ -182,7 +191,7 @@ const App: React.FC = () => {
             <div className="khmer-corner corner-bl"></div><div className="khmer-corner corner-br"></div>
             <h1 className="text-3xl md:text-5xl font-black heading-kh text-maroon py-6 px-4">ប្រព័ន្ធគ្រប់គ្រងសំណួរចម្លើយ</h1>
           </div>
-          <AuthSection onLogin={(role) => setUserRole(role)} secretCode={SECRET_CODE} />
+          <AuthSection onLogin={(role, uName) => { setUserRole(role); if(uName) setUsername(uName); }} secretCode={SECRET_CODE} />
         </div>
       </div>
     );
@@ -197,7 +206,7 @@ const App: React.FC = () => {
           totalQuestions={quizData.length} 
           cloudStatus={isCloudConnected}
           setMode={(m: AppMode) => { setMode(m); setActiveQuiz(null); }} 
-          onLogout={() => setUserRole(null)} 
+          onLogout={() => { setUserRole(null); setUsername(''); }} 
         />
         <main className="mt-8">
           {mode === 'play' ? (
@@ -216,6 +225,7 @@ const App: React.FC = () => {
               />
             ) : (
               <PlaySection 
+                username={username}
                 quizData={quizData} 
                 onStartQuiz={(subject, partIndex, type, customQuestions, isMixed) => 
                   setActiveQuiz({ subject, partIndex, type, customQuestions, isMixed })
@@ -225,6 +235,8 @@ const App: React.FC = () => {
           ) : (
             <CreateSection 
               quizData={quizData} 
+              feedbackList={feedbackList}
+              onDeleteFeedback={removeFeedback}
               onAdd={handleAddQuestion} 
               onUpdate={handleUpdateQuestion} 
               onRemove={handleRemoveQuestion} 
@@ -233,7 +245,7 @@ const App: React.FC = () => {
               onRemoveSubject={handleRemoveSubject} 
               onReorderSubject={handleReorderSubject}
               onBatchAdd={handleBatchAdd} 
-              onLogout={() => setUserRole(null)} 
+              onLogout={() => { setUserRole(null); setUsername(''); }} 
             />
           )}
         </main>

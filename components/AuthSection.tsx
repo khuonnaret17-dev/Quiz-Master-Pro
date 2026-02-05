@@ -5,7 +5,7 @@ import { UserRole } from '../types';
 import { ADMIN_CONTACTS, SECRET_CODE } from '../constants';
 
 interface AuthSectionProps {
-  onLogin: (role: UserRole) => void;
+  onLogin: (role: UserRole, username?: string) => void;
   secretCode: string;
 }
 
@@ -16,7 +16,7 @@ const AuthSection: React.FC<AuthSectionProps> = ({ onLogin, secretCode }) => {
 
   const handleAdminVerify = () => {
     if (passInput === SECRET_CODE) {
-      onLogin('admin');
+      onLogin('admin', 'Administrator');
     } else {
       alert("លេខកូដសម្ងាត់អ្នកគ្រប់គ្រងមិនត្រឹមត្រូវ!");
     }
@@ -37,7 +37,7 @@ const AuthSection: React.FC<AuthSectionProps> = ({ onLogin, secretCode }) => {
                             passInput.endsWith('26');
 
     if (isValidPassword) {
-      onLogin('user');
+      onLogin('user', trimmedUser);
     } else {
       alert("Password មិនត្រឹមត្រូវ! ត្រូវមាន ៦ខ្ទង់ និងផ្ដើមដោយ ២០...២៦ (ឧទាហរណ៍៖ ២០០១២៦)");
     }
@@ -60,7 +60,6 @@ const AuthSection: React.FC<AuthSectionProps> = ({ onLogin, secretCode }) => {
     <div className="animate-fadeIn relative">
       {view === 'main' && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Card សម្រាប់សមាជិក */}
           <div className="glass-card p-8 rounded-[2.5rem] border border-white/50 shadow-2xl flex flex-col items-center text-center group">
             <div className="text-6xl mb-6 group-hover:scale-110 transition-transform duration-500">🎓</div>
             <h2 className="text-2xl font-black heading-kh text-indigo-900 mb-4">សម្រាប់សមាជិក</h2>
@@ -95,7 +94,6 @@ const AuthSection: React.FC<AuthSectionProps> = ({ onLogin, secretCode }) => {
             </div>
           </div>
 
-          {/* Card សម្រាប់ Admin */}
           <button 
             onClick={() => setView('admin_login')} 
             className="glass-card p-8 rounded-[2.5rem] border border-white/50 shadow-2xl flex flex-col items-center text-center hover:bg-maroon/5 transition-all group"
