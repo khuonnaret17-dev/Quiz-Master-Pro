@@ -30,7 +30,7 @@ export const sendQuizPoll = async (config: TelegramConfig, q: Question): Promise
   const cleanQuestion = q.question.length > 300 ? q.question.substring(0, 297) + "..." : q.question;
   const cleanOptions = (q.options || []).map(opt => opt.length > 100 ? opt.substring(0, 97) + "..." : opt);
   
-  let explanation = `វិញ្ញាសា៖ ${q.subject} | Web QCM 🇰🇭`;
+  let explanation = `វិញ្ញាសា៖ ${q.subject} | Master Quiz KH`;
   if (explanation.length > 200) explanation = explanation.substring(0, 197) + "...";
 
   const payload = {

@@ -24,17 +24,8 @@ const AuthSection: React.FC<AuthSectionProps> = ({ onLogin, secretCode }) => {
 
   const handleUserVerify = () => {
     const trimmedUser = userInput.trim();
-    
-    // លក្ខខណ្ឌ ១៖ Username មិនអាចទទេ
-    if (!trimmedUser) {
-      alert("សូមបញ្ចូល Username!");
-      return;
-    }
-
-    // លក្ខខណ្ឌ ២៖ Password ត្រូវមាន ៦ខ្ទង់ ផ្ដើមដោយ ២០ និង បញ្ចប់ដោយ ២៦
-    const isValidPassword = passInput.length === 6 && 
-                            passInput.startsWith('20') && 
-                            passInput.endsWith('26');
+    if (!trimmedUser) return alert("សូមបញ្ចូល Username!");
+    const isValidPassword = passInput.length === 6 && passInput.startsWith('20') && passInput.endsWith('26');
 
     if (isValidPassword) {
       onLogin('user', trimmedUser);
@@ -43,130 +34,156 @@ const AuthSection: React.FC<AuthSectionProps> = ({ onLogin, secretCode }) => {
     }
   };
 
-  const renderBackButton = () => (
-    <button 
-      onClick={() => { 
-        setView('main'); 
-        setUserInput(''); 
-        setPassInput(''); 
-      }}
-      className="absolute top-6 left-6 w-10 h-10 flex items-center justify-center bg-gray-100/80 backdrop-blur-md rounded-xl hover:bg-maroon hover:text-white transition-all z-20 shadow-sm"
-    >
-      ←
-    </button>
-  );
-
   return (
-    <div className="animate-fadeIn relative">
+    <div className="page-transition relative max-w-5xl mx-auto px-4">
       {view === 'main' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="glass-card p-8 rounded-[2.5rem] border border-white/50 shadow-2xl flex flex-col items-center text-center group">
-            <div className="text-6xl mb-6 group-hover:scale-110 transition-transform duration-500">🎓</div>
-            <h2 className="text-2xl font-black heading-kh text-indigo-900 mb-4">សម្រាប់សមាជិក</h2>
-            <div className="space-y-3 w-full">
-              <button 
-                onClick={() => setView('user_login')} 
-                className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black heading-kh text-sm shadow-lg hover:bg-indigo-700 transition-all flex items-center justify-center gap-2 mb-4"
-              >
-                🔐 ចូលធ្វើតេស្ត (Login)
-              </button>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-stretch">
+          
+          {/* Member Card - With Running Line Animation */}
+          <div className="relative group rounded-[2.5rem] p-[3px] overflow-hidden transition-all duration-500 hover:-translate-y-2 hover:shadow-2xl shadow-xl h-full">
+            {/* Animated Running Line (Blue) */}
+            <div className="absolute inset-[-150%] bg-[conic-gradient(from_0deg_at_50%_50%,transparent_0%,transparent_85%,#3B82F6_100%)] animate-[spin_4s_linear_infinite]"></div>
+            
+            {/* Card Content */}
+            <div className="relative bg-white rounded-[2.3rem] p-8 h-full flex flex-col items-center text-center z-10 overflow-hidden">
+              {/* Background Decorations */}
+              <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-blue-400 via-indigo-500 to-purple-500"></div>
+              <div className="absolute -top-20 -right-20 w-60 h-60 bg-blue-50 rounded-full blur-3xl opacity-50 group-hover:opacity-80 transition-opacity duration-700"></div>
+              <div className="absolute bottom-0 left-0 w-full h-32 bg-gradient-to-t from-white via-white to-transparent z-10"></div>
               
-              <div className="grid grid-cols-1 gap-3 mt-4">
-                <p className="text-[10px] font-black uppercase text-gray-400 mb-1">ទំនាក់ទំនងបើកគណនី ៖</p>
-                <a 
-                  href={ADMIN_CONTACTS.admin1} 
-                  target="_blank" 
-                  rel="noopener noreferrer" 
-                  className="w-full py-3.5 bg-blue-600 text-white rounded-2xl font-black heading-kh text-[11px] shadow-lg animate-breathing flex items-center justify-center gap-2"
-                >
-                  📱 អ្នកគ្រប់គ្រង
-                </a>
-                <a 
-                  href={ADMIN_CONTACTS.admin2} 
-                  target="_blank" 
-                  rel="noopener noreferrer" 
-                  className="w-full py-3.5 bg-blue-500 text-white rounded-2xl font-black heading-kh text-[11px] shadow-lg animate-breathing flex items-center justify-center gap-2"
-                  style={{ animationDelay: '1s' }}
-                >
-                  📱 Master Quiz KH
-                </a>
+              <div className="relative flex flex-col items-center text-center z-20 h-full w-full">
+                <div className="relative mb-6">
+                  <div className="absolute inset-0 bg-blue-400 blur-2xl opacity-20 rounded-full group-hover:opacity-40 transition-opacity"></div>
+                  <div className="w-24 h-24 bg-gradient-to-br from-white to-blue-50 rounded-[2rem] flex items-center justify-center text-5xl shadow-lg border border-blue-100 transform group-hover:scale-110 group-hover:rotate-3 transition-all duration-500">
+                    👨‍🎓
+                  </div>
+                </div>
+                
+                <h2 className="text-3xl font-black heading-kh text-transparent bg-clip-text bg-gradient-to-r from-indigo-950 to-blue-800 mb-2">សមាជិក</h2>
+                <p className="text-sm text-gray-500 font-medium small-kh mb-8">ចូលរៀន និងពង្រឹងសមត្ថភាព</p>
+                
+                <div className="w-full flex flex-col gap-5 mt-auto">
+                  <button 
+                    onClick={() => setView('user_login')} 
+                    className="w-full py-4 rounded-2xl font-black heading-kh text-lg text-white bg-gradient-to-r from-indigo-600 to-blue-600 shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 hover:scale-[1.02] active:scale-[0.98] transition-all duration-300"
+                  >
+                    🔐 ចូលរៀន
+                  </button>
+                  
+                  {/* Contact Section */}
+                  <div className="bg-gradient-to-b from-slate-50 to-white p-5 rounded-2xl border-2 border-dashed border-indigo-200 relative mt-2 group/contact hover:border-indigo-400 transition-colors w-full">
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-gradient-to-r from-indigo-600 to-blue-600 text-white px-4 py-1 rounded-full text-[10px] font-black heading-kh shadow-md tracking-wider whitespace-nowrap">
+                       បើកគណនីដើម្បីប្រើប្រាស់
+                    </div>
+                    
+                    <p className="text-sm font-black heading-kh text-indigo-900 mb-4 mt-2">✨ ទំនាក់ទំនងដើម្បីបើកគណនី ✨</p>
+                    
+                    <div className="grid grid-cols-2 gap-3">
+                      <a href={ADMIN_CONTACTS.admin1} target="_blank" className="py-3 bg-white text-indigo-950 rounded-xl font-black heading-kh text-[11px] border border-gray-100 shadow-sm hover:shadow-md hover:border-blue-200 hover:-translate-y-1 transition-all flex items-center justify-center gap-2 group/btn">
+                         <span className="text-blue-500 text-lg group-hover/btn:rotate-12 transition-transform">✈️</span> អ្នកគ្រប់គ្រង
+                      </a>
+                      <a href={ADMIN_CONTACTS.admin2} target="_blank" className="py-3 bg-white text-indigo-950 rounded-xl font-black heading-kh text-[11px] border border-gray-100 shadow-sm hover:shadow-md hover:border-blue-200 hover:-translate-y-1 transition-all flex items-center justify-center gap-2 group/btn">
+                         <span className="text-blue-500 text-lg group-hover/btn:rotate-12 transition-transform">✈️</span> Master Quiz KH
+                      </a>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
 
-          <button 
-            onClick={() => setView('admin_login')} 
-            className="glass-card p-8 rounded-[2.5rem] border border-white/50 shadow-2xl flex flex-col items-center text-center hover:bg-maroon/5 transition-all group"
+          {/* Admin Card - With Running Line Animation */}
+          <div 
+            onClick={() => setView('admin_login')}
+            className="relative group rounded-[2.5rem] p-[3px] overflow-hidden transition-all duration-500 hover:-translate-y-2 hover:shadow-2xl shadow-xl h-full cursor-pointer"
           >
-            <div className="text-6xl mb-6 group-hover:rotate-12 transition-transform duration-500">⚙️</div>
-            <h2 className="text-2xl font-black heading-kh text-maroon mb-2">អ្នកគ្រប់គ្រង</h2>
-            <p className="text-xs small-kh text-gray-400 mb-6">សម្រាប់រៀបចំ និងគ្រប់គ្រងសំណួរ</p>
-            <div className="mt-auto w-full py-4 border-2 border-maroon/20 rounded-2xl text-maroon font-black heading-kh text-sm group-hover:bg-maroon group-hover:text-white transition-all">
-              ចូលត្រួតពិនិត្យ
+             {/* Animated Running Line (Red) */}
+            <div className="absolute inset-[-150%] bg-[conic-gradient(from_0deg_at_50%_50%,transparent_0%,transparent_85%,#DC2626_100%)] animate-[spin_4s_linear_infinite]"></div>
+
+            {/* Card Content */}
+            <div className="relative bg-white rounded-[2.3rem] p-8 h-full flex flex-col items-center text-center z-10 overflow-hidden">
+              {/* Background Decorations */}
+              <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-red-500 via-rose-500 to-pink-600"></div>
+              <div className="absolute -top-20 -right-20 w-60 h-60 bg-red-50 rounded-full blur-3xl opacity-50 group-hover:opacity-80 transition-opacity duration-700"></div>
+              
+              <div className="relative flex flex-col items-center text-center z-20 h-full w-full">
+                <div className="relative mb-6">
+                  <div className="absolute inset-0 bg-red-400 blur-2xl opacity-20 rounded-full group-hover:opacity-40 transition-opacity"></div>
+                  <div className="w-24 h-24 bg-gradient-to-br from-white to-red-50 rounded-[2rem] flex items-center justify-center text-5xl shadow-lg border border-red-100 transform group-hover:rotate-180 transition-all duration-1000 ease-in-out">
+                    ⚙️
+                  </div>
+                </div>
+
+                <h2 className="text-3xl font-black heading-kh text-transparent bg-clip-text bg-gradient-to-r from-red-900 to-rose-700 mb-2">ADMIN</h2>
+                <p className="text-sm text-gray-500 font-medium small-kh mb-8">គ្រប់គ្រងប្រព័ន្ធ</p>
+                
+                <div className="mt-auto w-full">
+                   <button className="w-full py-4 rounded-2xl font-black heading-kh text-lg text-white bg-gradient-to-r from-red-700 to-rose-600 shadow-lg shadow-red-500/30 group-hover:shadow-red-500/50 group-hover:scale-[1.02] active:scale-[0.98] transition-all duration-300">
+                    គ្រប់គ្រង 🚀
+                  </button>
+                </div>
+              </div>
             </div>
-          </button>
+          </div>
         </div>
       )}
 
-      {view === 'user_login' && (
-        <div className="glass-card rounded-[3rem] shadow-2xl p-10 md:p-12 text-center border-2 border-white animate-fadeIn relative">
-          {renderBackButton()}
-          <div className="text-6xl mb-6">🔑</div>
-          <h2 className="text-2xl font-black heading-kh text-indigo-900 mb-2">Login</h2>
-          <p className="text-xs small-kh text-gray-400 mb-8">សូមបញ្ចូល Username និង Password ដើម្បីចាប់ផ្ដើម</p>
-          <div className="space-y-5 mb-8 text-left">
-            <div>
-              <label className="text-[11px] font-black uppercase text-indigo-900 ml-4 mb-2 block">Username</label>
-              <input 
-                type="text" 
-                value={userInput} 
-                onChange={(e) => setUserInput(e.target.value)} 
-                className="w-full px-6 py-4 rounded-2xl border border-gray-100 bg-gray-50/50 outline-none focus:ring-4 focus:ring-indigo-500/10 focus:bg-white transition-all font-bold text-indigo-900" 
-                placeholder="Username" 
-              />
+      {(view === 'user_login' || view === 'admin_login') && (
+        <div className="card-white-elegant p-8 md:p-12 text-center page-transition relative max-w-md mx-auto">
+          <button 
+            onClick={() => { setView('main'); setUserInput(''); setPassInput(''); }}
+            className="absolute top-6 left-6 w-10 h-10 flex items-center justify-center bg-gray-100 rounded-xl hover:bg-maroon hover:text-white transition-all shadow-sm font-black text-xl z-20"
+          >
+            ←
+          </button>
+          
+          <div className="relative mb-8 mt-2">
+            <div className={`w-28 h-28 mx-auto rounded-[2rem] flex items-center justify-center text-5xl shadow-inner border border-gray-100 ${view === 'user_login' ? 'bg-blue-50 text-blue-600' : 'bg-red-50 text-red-600'}`}>
+              {view === 'user_login' ? '👤' : '🔒'}
             </div>
-            <div>
-              <label className="text-[11px] font-black uppercase text-indigo-900 ml-4 mb-2 block">Password</label>
+            {/* Animated Ring */}
+            <div className={`absolute inset-0 m-auto w-28 h-28 rounded-[2rem] border-2 ${view === 'user_login' ? 'border-blue-500' : 'border-red-500'} animate-ping opacity-20`}></div>
+          </div>
+
+          <h2 className={`text-2xl font-black heading-kh mb-2 ${view === 'user_login' ? 'text-indigo-950' : 'text-maroon-bold'}`}>
+            {view === 'user_login' ? 'ចូលជាសមាជិក' : 'ចូលជា ADMIN'}
+          </h2>
+          <p className="text-xs small-kh text-gray-400 mb-8 uppercase tracking-widest">បញ្ជាក់អត្តសញ្ញាណ</p>
+
+          <div className="space-y-6 mb-10 text-left">
+            {view === 'user_login' && (
+              <div className="group">
+                <label className="text-[10px] font-black uppercase text-indigo-950 ml-4 mb-2 block tracking-widest small-kh group-focus-within:text-blue-600 transition-colors">Username</label>
+                <input 
+                  type="text" 
+                  value={userInput} 
+                  onChange={(e) => setUserInput(e.target.value)} 
+                  className="input-elegant w-full px-6 py-4 rounded-2xl border-2 border-gray-100 focus:border-blue-500 focus:bg-blue-50/20 transition-all font-bold text-lg" 
+                  placeholder="វាយឈ្មោះ..." 
+                />
+              </div>
+            )}
+            <div className="group">
+              <label className={`text-[10px] font-black uppercase ml-4 mb-2 block tracking-widest small-kh transition-colors ${view === 'admin_login' ? 'text-maroon-bold group-focus-within:text-red-600' : 'text-indigo-950 group-focus-within:text-blue-600'}`}>
+                {view === 'user_login' ? 'Password (៦ខ្ទង់)' : 'Admin Password'}
+              </label>
               <input 
-                type="text" 
-                inputMode="numeric"
+                type={view === 'user_login' ? 'text' : 'password'} 
+                inputMode={view === 'user_login' ? 'numeric' : 'text'}
                 value={passInput} 
-                onChange={(e) => setPassInput(e.target.value.replace(/\D/g, '').slice(0, 6))} 
-                className="w-full px-6 py-4 rounded-2xl border border-gray-100 bg-gray-50/50 outline-none focus:ring-4 focus:ring-indigo-500/10 focus:bg-white transition-all font-bold tracking-widest text-indigo-900" 
-                placeholder="Password" 
-                onKeyDown={(e) => e.key === 'Enter' && handleUserVerify()} 
+                onChange={(e) => setPassInput(view === 'user_login' ? e.target.value.replace(/\D/g, '').slice(0, 6) : e.target.value)} 
+                className={`input-elegant w-full px-6 py-4 rounded-2xl border-2 border-gray-100 focus:bg-opacity-20 transition-all font-bold text-lg ${view === 'admin_login' ? 'text-center tracking-[0.5em] focus:border-red-500 focus:bg-red-50' : 'focus:border-blue-500 focus:bg-blue-50'}`} 
+                placeholder={view === 'user_login' ? "••••••" : "••••"}
+                onKeyDown={(e) => e.key === 'Enter' && (view === 'user_login' ? handleUserVerify() : handleAdminVerify())} 
               />
             </div>
           </div>
-          <button 
-            onClick={handleUserVerify} 
-            className="w-full bg-indigo-600 text-white font-black py-5 rounded-3xl shadow-xl hover:brightness-110 active:scale-95 transition-all heading-kh text-lg"
-          >
-            ចូលតេស្តឥឡូវនេះ
-          </button>
-        </div>
-      )}
 
-      {view === 'admin_login' && (
-        <div className="glass-card rounded-[3rem] shadow-2xl p-10 md:p-12 text-center border-2 border-white animate-fadeIn relative">
-          {renderBackButton()}
-          <div className="text-6xl mb-6">🔒</div>
-          <h2 className="text-2xl font-black heading-kh text-maroon mb-2">Admin Login</h2>
-          <p className="text-xs small-kh text-gray-400 mb-8">សូមបញ្ចូលលេខកូដសម្ងាត់សម្រាប់ Admin</p>
-          <input 
-            type="password" 
-            value={passInput} 
-            autoFocus 
-            onChange={(e) => setPassInput(e.target.value)} 
-            className="w-full px-6 py-5 rounded-2xl border-2 border-gray-100 focus:border-maroon outline-none text-center mb-8 transition-all heading-kh text-2xl tracking-[1rem]" 
-            placeholder="••••" 
-            onKeyDown={(e) => e.key === 'Enter' && handleAdminVerify()} 
-          />
           <button 
-            onClick={handleAdminVerify} 
-            className="w-full bg-maroon text-white font-black py-5 rounded-3xl shadow-xl hover:brightness-110 active:scale-95 transition-all heading-kh text-lg"
+            onClick={view === 'user_login' ? handleUserVerify : handleAdminVerify} 
+            className={`w-full py-4 rounded-2xl font-black heading-kh text-lg text-white shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 ${view === 'user_login' ? 'bg-gradient-to-r from-blue-600 to-indigo-700 shadow-blue-500/30' : 'bg-gradient-to-r from-red-600 to-rose-700 shadow-red-500/30'}`}
           >
-            ផ្ទៀងផ្ទាត់ Admin
+            យល់ព្រម 🚀
           </button>
         </div>
       )}

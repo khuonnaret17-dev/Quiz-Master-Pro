@@ -1,6 +1,21 @@
 
-import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
-import { initializeFirestore, doc, setDoc, onSnapshot, Firestore, getFirestore, collection, addDoc, query, orderBy, deleteDoc } from 'firebase/firestore';
+// Fix: Using @firebase/app and @firebase/firestore instead of the top-level firebase/app
+// and firebase/firestore to resolve module resolution errors in certain build environments
+// where the modular SDK's named exports are not correctly identified.
+import { initializeApp, getApps } from "@firebase/app";
+import { 
+  getFirestore, 
+  initializeFirestore, 
+  doc, 
+  setDoc, 
+  onSnapshot, 
+  Firestore, 
+  collection, 
+  addDoc, 
+  query, 
+  orderBy, 
+  deleteDoc 
+} from '@firebase/firestore';
 import { Question, Feedback } from '../types';
 
 const firebaseConfig = {
@@ -13,57 +28,65 @@ const firebaseConfig = {
   measurementId: "G-MQJYZ5ME91"
 };
 
-let db: Firestore | null = null;
+let dbInstance: Firestore | null = null;
 
-export const initFirebase = (): Firestore | null => {
-  if (db) return db;
+/**
+ * Initializes Firebase and Firestore.
+ * Standardizes version usage and ensures proper component registration.
+ * Uses long polling to circumvent backend connectivity timeouts.
+ */
+export const initFirebase = (): Firestore => {
+  if (dbInstance) return dbInstance;
   
   try {
     const apps = getApps();
-    const app: FirebaseApp = apps.length === 0 ? initializeApp(firebaseConfig) : apps[0];
+    const app = apps.length === 0 ? initializeApp(firebaseConfig) : apps[0];
     
-    db = initializeFirestore(app, {
-      experimentalForceLongPolling: true,
-      experimentalAutoDetectLongPolling: false,
-      useFetchStreams: false,
-    } as any);
-    
-    return db;
-  } catch (e) {
+    // Use initializeFirestore as primary to force experimental transport settings
+    // which help with connectivity issues ("Backend didn't respond").
     try {
-      db = getFirestore();
-      return db;
-    } catch (innerErr) {
-      console.error("Firebase critical failure:", innerErr);
-      return null;
+      dbInstance = initializeFirestore(app, {
+        experimentalForceLongPolling: true,
+      });
+    } catch (err) {
+      console.warn("Explicit initialization failed, falling back to getFirestore...");
+      dbInstance = getFirestore(app);
     }
+    
+    return dbInstance!;
+  } catch (e: any) {
+    console.error("Firebase Critical Error during init:", e?.message);
+    throw e;
   }
 };
 
-/**
- * មុខងារសម្រាប់ Questions
- */
 const prepareDataForFirestore = (questions: Question[]): any[] => {
   if (!Array.isArray(questions)) return [];
-  
   return questions.map(q => {
-    const type = q.type === 'short' ? 'short' : 'mcq';
+    // FIX: Correctly determine the type. 
+    // Previously, anything not 'short' defaulted to 'mcq', causing 'explanation' to be lost.
+    let type = 'mcq';
+    if (q.type === 'short') type = 'short';
+    if (q.type === 'explanation') type = 'explanation';
+
+    const base = {
+      subject: String(q.subject || ''),
+      question: String(q.question || ''),
+      type: type,
+      isActive: q.isActive !== false
+    };
+
     if (type === 'mcq') {
       return {
-        subject: String(q.subject || ''),
-        question: String(q.question || ''),
-        type: 'mcq',
-        options: Array.isArray(q.options) ? q.options.map(o => String(o)) : [],
+        ...base,
+        options: Array.isArray(q.options) ? q.options.map(o => String(o)) : ["", "", "", ""],
         correct: typeof q.correct === 'number' ? q.correct : 0,
-        isActive: q.isActive !== false
       };
     } else {
+      // Both 'short' and 'explanation' use the 'answer' field
       return {
-        subject: String(q.subject || ''),
-        question: String(q.question || ''),
-        type: 'short',
+        ...base,
         answer: String(q.answer || ''),
-        isActive: q.isActive !== false
       };
     }
   });
@@ -71,8 +94,6 @@ const prepareDataForFirestore = (questions: Question[]): any[] => {
 
 export const syncQuestionsToFirebase = async (questions: Question[]) => {
   const database = initFirebase();
-  if (!database) throw new Error("Database not initialized");
-  
   try {
     const quizRef = doc(database, 'config', 'questions_data');
     const dataToSync = prepareDataForFirestore(questions);
@@ -81,8 +102,8 @@ export const syncQuestionsToFirebase = async (questions: Question[]) => {
       questions: dataToSync, 
       updatedAt: new Date().toISOString() 
     });
-  } catch (err) {
-    console.error("Sync to Firebase failed:", err);
+  } catch (err: any) {
+    console.error("Sync error:", err?.message);
     throw err;
   }
 };
@@ -92,11 +113,6 @@ export const listenToQuestions = (
   onError: (error: any) => void
 ) => {
   const database = initFirebase();
-  if (!database) {
-    onError(new Error("No DB Connection"));
-    return () => {};
-  }
-  
   const quizRef = doc(database, 'config', 'questions_data');
   
   return onSnapshot(quizRef, 
@@ -109,51 +125,50 @@ export const listenToQuestions = (
       }
     },
     (error) => {
-      console.error("Firestore real-time error:", error);
+      console.error("Firestore Listen error:", error?.message);
       onError(error);
     }
   );
 };
 
-/**
- * មុខងារថ្មីសម្រាប់មតិយោបល់ (Feedback)
- */
 export const sendFeedback = async (username: string, text: string) => {
   const database = initFirebase();
-  if (!database) return;
   try {
     const feedbackCol = collection(database, 'feedback');
     await addDoc(feedbackCol, {
-      username,
-      text,
+      username: String(username),
+      text: String(text),
       createdAt: new Date().toISOString()
     });
-  } catch (e) {
-    console.error("Error sending feedback:", e);
+  } catch (e: any) {
+    console.error("Feedback error:", e?.message);
   }
 };
 
 export const listenToFeedback = (onUpdate: (feedback: Feedback[]) => void) => {
   const database = initFirebase();
-  if (!database) return () => {};
   const feedbackCol = collection(database, 'feedback');
   const q = query(feedbackCol, orderBy('createdAt', 'desc'));
   
   return onSnapshot(q, (snapshot) => {
-    const fbList = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    })) as Feedback[];
+    const fbList = snapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        username: String(data.username || 'Anonymous'),
+        text: String(data.text || ''),
+        createdAt: String(data.createdAt || new Date().toISOString())
+      };
+    }) as Feedback[];
     onUpdate(fbList);
   });
 };
 
 export const removeFeedback = async (id: string) => {
   const database = initFirebase();
-  if (!database) return;
   try {
     await deleteDoc(doc(database, 'feedback', id));
-  } catch (e) {
-    console.error("Error deleting feedback:", e);
+  } catch (e: any) {
+    console.error("Delete error:", e?.message);
   }
 };

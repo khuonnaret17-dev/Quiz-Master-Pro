@@ -2,10 +2,10 @@
 export interface Question {
   subject: string;
   question: string;
-  type: 'mcq' | 'short';
+  type: 'mcq' | 'short' | 'explanation';
   options?: string[]; // Required for MCQ
   correct?: number;   // Index for MCQ
-  answer?: string;    // Correct text for Short Answer
+  answer?: string;    // Correct text for Short Answer / Explanation
   isActive?: boolean;
 }
 
@@ -33,7 +33,7 @@ export interface QuizState {
 export interface SelectedQuizInfo {
   subject: string;
   partIndex: number;
-  type: 'mcq' | 'short';
+  type: 'mcq' | 'short' | 'explanation';
   customQuestions?: Question[]; 
   isMixed?: boolean;           
 }
