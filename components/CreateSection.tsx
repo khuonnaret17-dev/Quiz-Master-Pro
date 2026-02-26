@@ -1,7 +1,7 @@
 
 import * as React from 'react';
 import { useState, useMemo, useRef } from 'react';
-import { Question, TelegramConfig, Feedback } from '../types';
+import { Question, TelegramConfig, Feedback, AppNotification, LoginRecord, PresenceRecord } from '../types';
 import { DEFAULT_TG_BOT_TOKEN, TG_CHANNELS } from '../constants';
 import html2canvas from 'html2canvas';
 import { sendQuizPoll, sendQuestionImage } from '../services/telegramService';
@@ -12,7 +12,13 @@ declare var JSZip: any;
 interface CreateSectionProps {
   quizData: Question[];
   feedbackList?: Feedback[];
+  notificationList?: AppNotification[];
+  loginList?: LoginRecord[];
+  presenceList?: PresenceRecord[];
   onDeleteFeedback?: (id: string) => void;
+  onDeleteNotification?: (id: string) => void;
+  onDeleteLogin?: (id: string) => void;
+  onSendManualNotification?: (message: string, type: 'info' | 'success' | 'warning') => Promise<void>;
   onAdd: (q: Question) => void;
   onUpdate: (index: number, q: Question) => void;
   onRemove: (index: number) => void;
@@ -31,7 +37,7 @@ type TelegramSendMode = 'poll' | 'image' | 'text';
 type QuestionWithIndex = Question & { originalIndex: number };
 
 const CreateSection: React.FC<CreateSectionProps> = ({ 
-  quizData, feedbackList = [], onDeleteFeedback, onAdd, onUpdate, onRemove, onToggleSubject, onUpdateSubject, onRemoveSubject, onReorderSubject, onBatchAdd
+  quizData, feedbackList = [], notificationList = [], loginList = [], presenceList = [], onDeleteFeedback, onDeleteNotification, onDeleteLogin, onSendManualNotification, onAdd, onUpdate, onRemove, onToggleSubject, onUpdateSubject, onRemoveSubject, onReorderSubject, onBatchAdd
 }) => {
   const APP_LOGO_URL = "https://i.postimg.cc/0ygmLdvR/3QCM_Ep4.png";
   const KHMER_PREFIXES = ['ក', 'ខ', 'គ', 'ឃ'];
@@ -39,7 +45,7 @@ const CreateSection: React.FC<CreateSectionProps> = ({
   const CAMBODIA_TITLE = "ព្រះរាជាណាចក្រកម្ពុជា";
   const CAMBODIA_MOTTO = "ជាតិ សាសនា ព្រះមហាក្សត្រ";
   
-  const [entryMode, setEntryMode] = useState<'single' | 'bulk' | 'subjects' | 'feedback'>('single');
+  const [entryMode, setEntryMode] = useState<'single' | 'bulk' | 'subjects' | 'feedback' | 'logins'>('single');
   const [qType, setQType] = useState<'mcq' | 'short' | 'explanation'>('mcq');
   const [bulkType, setBulkType] = useState<'mcq' | 'short' | 'explanation'>('mcq');
   const [manageTab, setManageTab] = useState<'mcq' | 'short' | 'explanation'>('mcq'); // New state for managing tabs
@@ -74,12 +80,21 @@ const CreateSection: React.FC<CreateSectionProps> = ({
   const [individualSendMode, setIndividualSendMode] = useState<TelegramSendMode>('poll');
   const [confirmIndividualSend, setConfirmIndividualSend] = useState<{q: QuestionWithIndex, idx: number} | null>(null);
 
+  const [manualNotifText, setManualNotifText] = useState('');
+  const [isSendingNotif, setIsSendingNotif] = useState(false);
+  const [loginSubTab, setLoginSubTab] = useState<'online' | 'history'>('online');
+
   const imageTemplateRef = useRef<HTMLDivElement>(null);
   const posterTemplateRef = useRef<HTMLDivElement>(null);
   const pdfTemplateRef = useRef<HTMLDivElement>(null);
   const [previewQ, setPreviewQ] = useState<Question | null>(null);
 
   const toKhmerNumeral = (n: number) => n.toString().split('').map(digit => KHMER_DIGITS[parseInt(digit)] || digit).join('');
+
+  const onlineUsers = useMemo(() => {
+    const fiveMinsAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+    return presenceList.filter(p => p.lastSeen >= fiveMinsAgo);
+  }, [presenceList]);
 
   // Use originalIndex mapping for global search
   const filteredGlobalQuestions = useMemo<QuestionWithIndex[]>(() => {
@@ -255,6 +270,22 @@ const CreateSection: React.FC<CreateSectionProps> = ({
     if (editingIndex !== null) onUpdate(editingIndex, cleanQ); else onAdd(cleanQ);
     setQuestion(''); setOptions(['', '', '', '']); setShortAnswer(''); setEditingIndex(null);
     alert("រក្សាទុកជោគជ័យ!");
+  };
+
+  const handleSendManualNotification = async () => {
+    if (!manualNotifText.trim()) return alert("សូមបញ្ចូលសារជូនដំណឹង!");
+    if (!onSendManualNotification) return;
+
+    setIsSendingNotif(true);
+    try {
+      await onSendManualNotification(manualNotifText.trim(), 'info');
+      setManualNotifText('');
+      alert("បានផ្ញើការជូនដំណឹងជោគជ័យ!");
+    } catch (e) {
+      alert("ការផ្ញើបានបរាជ័យ!");
+    } finally {
+      setIsSendingNotif(false);
+    }
   };
 
   const handleBulkSubmit = () => {
@@ -506,11 +537,13 @@ const CreateSection: React.FC<CreateSectionProps> = ({
             { id: 'single', label: '✍️ បញ្ចូលសំណួរ' },
             { id: 'bulk', label: '🚀 បញ្ចូលទាំងអស់' },
             { id: 'subjects', label: '📚 គ្រប់គ្រងទិន្នន័យ' },
-            { id: 'feedback', label: '💬 មតិយោបល់' }
+            { id: 'feedback', label: '💬 មតិយោបល់ & ដំណឹង' },
+            { id: 'logins', label: '👥 សមាជិក' }
           ].map(tab => (
             <button key={tab.id} onClick={() => setEntryMode(tab.id as any)} className={`flex-1 min-w-[140px] py-3.5 px-4 rounded-xl font-black heading-kh text-[11px] transition-all duration-300 ${entryMode === tab.id ? 'bg-red-700 text-white shadow-lg' : 'text-gray-500 hover:text-red-700'}`}>
               {tab.label}
-              {tab.id === 'feedback' && feedbackList.length > 0 && <span className="ml-2 bg-white text-red-700 px-2 py-0.5 rounded-full text-[8px]">{feedbackList.length}</span>}
+              {tab.id === 'feedback' && (feedbackList.length + notificationList.length) > 0 && <span className="ml-2 bg-white text-red-700 px-2 py-0.5 rounded-full text-[8px]">{feedbackList.length + notificationList.length}</span>}
+              {tab.id === 'logins' && loginList.length > 0 && <span className="ml-2 bg-white text-red-700 px-2 py-0.5 rounded-full text-[8px]">{loginList.length}</span>}
             </button>
           ))}
         </div>
@@ -776,16 +809,160 @@ const CreateSection: React.FC<CreateSectionProps> = ({
           )}
 
           {entryMode === 'feedback' && (
-            <div className="animate-fadeIn space-y-4">
-              {feedbackList.map(fb => (
-                <div key={fb.id} className="p-6 bg-white rounded-2xl border border-gray-100 shadow-sm flex justify-between items-start">
-                  <div>
-                    <h4 className="font-black text-[#800000] text-sm mb-1">{fb.username} <span className="text-gray-300 text-[9px] ml-2">{new Date(fb.createdAt).toLocaleString()}</span></h4>
-                    <p className="text-sm text-gray-600 small-kh">{fb.text}</p>
-                  </div>
-                  <button onClick={() => fb.id && onDeleteFeedback && onDeleteFeedback(fb.id)} className="p-2 text-red-400 hover:text-red-600">🗑️</button>
+            <div className="animate-fadeIn space-y-8">
+              {/* Manual Notification Form */}
+              <div className="bg-indigo-50/30 p-6 rounded-[2rem] border border-indigo-100 shadow-sm">
+                <h3 className="heading-kh text-sm font-black text-indigo-900 mb-4 px-2">📢 ផ្ញើការជូនដំណឹងដោយដៃ</h3>
+                <div className="flex flex-col md:flex-row gap-3">
+                  <input 
+                    type="text" 
+                    value={manualNotifText}
+                    onChange={(e) => setManualNotifText(e.target.value)}
+                    placeholder="វាយសារជូនដំណឹងនៅទីនេះ..." 
+                    className="flex-1 px-6 py-4 rounded-2xl border border-indigo-100 outline-none focus:ring-2 focus:ring-indigo-600 heading-kh text-sm bg-white text-blue-600 font-bold"
+                  />
+                  <button 
+                    onClick={handleSendManualNotification}
+                    disabled={isSendingNotif}
+                    className={`px-8 py-4 bg-indigo-600 text-white rounded-2xl font-black heading-kh text-sm shadow-lg hover:bg-indigo-700 transition-all flex items-center justify-center gap-2 ${isSendingNotif ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  >
+                    {isSendingNotif ? 'កំពុងផ្ញើ...' : 'ផ្ញើដំណឹង 🚀'}
+                  </button>
                 </div>
-              ))}
+              </div>
+
+              {/* Notifications Section */}
+              {notificationList.length > 0 && (
+                <div className="space-y-4">
+                  <h3 className="heading-kh text-sm font-black text-indigo-600 px-2">🔔 ការជូនដំណឹងដែលបានផ្ញើ</h3>
+                  {notificationList.map(notif => (
+                    <div key={notif.id} className="p-6 bg-indigo-50/50 rounded-2xl border border-indigo-100 shadow-sm flex justify-between items-start">
+                      <div className="flex gap-4">
+                        <div className="bg-indigo-100 p-2 rounded-xl h-fit">
+                          <span className="text-lg">📢</span>
+                        </div>
+                        <div>
+                          <h4 className="font-black text-indigo-900 text-sm mb-1">ដំណឹងប្រព័ន្ធ <span className="text-indigo-300 text-[9px] ml-2">{new Date(notif.timestamp).toLocaleString('km-KH')}</span></h4>
+                          <p className="text-sm text-indigo-700 small-kh">{notif.message}</p>
+                        </div>
+                      </div>
+                      <button onClick={() => notif.id && onDeleteNotification && onDeleteNotification(notif.id)} className="p-2 text-indigo-400 hover:text-indigo-600">🗑️</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Feedback Section */}
+              <div className="space-y-4">
+                <h3 className="heading-kh text-sm font-black text-red-700 px-2">💬 មតិយោបល់ពីសមាជិក</h3>
+                {feedbackList.length === 0 ? (
+                  <div className="text-center py-10 opacity-30">
+                    <p className="heading-kh text-sm">មិនទាន់មានមតិយោបល់នៅឡើយទេ</p>
+                  </div>
+                ) : (
+                  feedbackList.map(fb => (
+                    <div key={fb.id} className="p-6 bg-white rounded-2xl border border-gray-100 shadow-sm flex justify-between items-start">
+                      <div className="flex gap-4">
+                        <div className="bg-red-50 p-2 rounded-xl h-fit">
+                          <span className="text-lg">👤</span>
+                        </div>
+                        <div>
+                          <h4 className="font-black text-[#800000] text-sm mb-1">{fb.username} <span className="text-gray-300 text-[9px] ml-2">{new Date(fb.createdAt).toLocaleString('km-KH')}</span></h4>
+                          <p className="text-sm text-gray-600 small-kh">{fb.text}</p>
+                        </div>
+                      </div>
+                      <button onClick={() => fb.id && onDeleteFeedback && onDeleteFeedback(fb.id)} className="p-2 text-red-400 hover:text-red-600">🗑️</button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+          {entryMode === 'logins' && (
+            <div className="animate-fadeIn space-y-6">
+              <div className="flex justify-between items-center px-2">
+                <h3 className="heading-kh text-sm font-black text-indigo-950">👥 គ្រប់គ្រងសមាជិក</h3>
+              </div>
+
+              {/* Sub Tabs */}
+              <div className="flex gap-2 bg-gray-100 p-1 rounded-xl">
+                <button 
+                  onClick={() => setLoginSubTab('online')}
+                  className={`flex-1 py-2 rounded-lg text-[10px] font-black heading-kh transition-all ${loginSubTab === 'online' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-400'}`}
+                >
+                  🟢 កំពុងប្រើប្រាស់ ({toKhmerNumeral(onlineUsers.length)})
+                </button>
+                <button 
+                  onClick={() => setLoginSubTab('history')}
+                  className={`flex-1 py-2 rounded-lg text-[10px] font-black heading-kh transition-all ${loginSubTab === 'history' ? 'bg-white text-indigo-950 shadow-sm' : 'text-gray-400'}`}
+                >
+                  📜 ប្រវត្តិចូលប្រើ ({toKhmerNumeral(loginList.length)})
+                </button>
+              </div>
+              
+              {loginSubTab === 'online' ? (
+                <div className="grid grid-cols-1 gap-4">
+                  {onlineUsers.length === 0 ? (
+                    <div className="text-center py-20 opacity-30">
+                      <p className="heading-kh">មិនមានសមាជិកកំពុងប្រើប្រាស់ទេ</p>
+                    </div>
+                  ) : (
+                    onlineUsers.map(user => (
+                      <div key={user.id} className="p-6 bg-white rounded-2xl border border-blue-100 shadow-sm flex justify-between items-center animate-fadeIn">
+                        <div className="flex items-center gap-4">
+                          <div className="relative">
+                            <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-xl ${user.role === 'admin' ? 'bg-red-50 text-red-600' : 'bg-blue-50 text-blue-600'}`}>
+                              {user.role === 'admin' ? '⚙️' : '👤'}
+                            </div>
+                            <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 border-2 border-white rounded-full animate-pulse"></div>
+                          </div>
+                          <div>
+                            <h4 className="font-black text-indigo-950 text-sm">{user.username}</h4>
+                            <p className="text-[9px] text-gray-400 uppercase tracking-widest font-bold">{user.role}</p>
+                            <p className="text-[8px] text-green-600 font-bold mt-0.5">សកម្មភាពចុងក្រោយ៖ {new Date(user.lastSeen).toLocaleTimeString('km-KH')}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 gap-4">
+                  {loginList.length === 0 ? (
+                    <div className="text-center py-20 opacity-30">
+                      <p className="heading-kh">មិនទាន់មានប្រវត្តិចូលប្រើទេ</p>
+                    </div>
+                  ) : (
+                    loginList.map(log => (
+                      <div key={log.id} className="p-6 bg-white rounded-2xl border border-gray-100 shadow-sm flex justify-between items-center group hover:border-blue-200 transition-all">
+                        <div className="flex items-center gap-4">
+                          <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-xl ${log.role === 'admin' ? 'bg-red-50 text-red-600' : 'bg-blue-50 text-blue-600'}`}>
+                            {log.role === 'admin' ? '⚙️' : '👤'}
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <h4 className="font-black text-indigo-950 text-sm">{log.username}</h4>
+                              <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest ${log.role === 'admin' ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'}`}>
+                                {log.role}
+                              </span>
+                            </div>
+                            <div className="flex flex-col mt-1">
+                              <p className="text-[10px] text-gray-400 font-bold">Password: <span className="text-blue-600">{log.passwordUsed}</span></p>
+                              <p className="text-[9px] text-gray-300 mt-0.5">{new Date(log.timestamp).toLocaleString('km-KH')}</p>
+                            </div>
+                          </div>
+                        </div>
+                        <button 
+                          onClick={() => log.id && onDeleteLogin && onDeleteLogin(log.id)}
+                          className="p-3 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
+                        >
+                          🗑️
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>

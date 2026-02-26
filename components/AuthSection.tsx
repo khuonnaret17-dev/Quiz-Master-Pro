@@ -5,7 +5,7 @@ import { UserRole } from '../types';
 import { ADMIN_CONTACTS, SECRET_CODE } from '../constants';
 
 interface AuthSectionProps {
-  onLogin: (role: UserRole, username?: string) => void;
+  onLogin: (role: UserRole, username?: string, passwordUsed?: string) => void;
   secretCode: string;
 }
 
@@ -16,7 +16,7 @@ const AuthSection: React.FC<AuthSectionProps> = ({ onLogin, secretCode }) => {
 
   const handleAdminVerify = () => {
     if (passInput === SECRET_CODE) {
-      onLogin('admin', 'Administrator');
+      onLogin('admin', 'Administrator', passInput);
     } else {
       alert("លេខកូដសម្ងាត់អ្នកគ្រប់គ្រងមិនត្រឹមត្រូវ!");
     }
@@ -28,7 +28,7 @@ const AuthSection: React.FC<AuthSectionProps> = ({ onLogin, secretCode }) => {
     const isValidPassword = passInput.length === 6 && passInput.startsWith('20') && passInput.endsWith('26');
 
     if (isValidPassword) {
-      onLogin('user', trimmedUser);
+      onLogin('user', trimmedUser, passInput);
     } else {
       alert("Password មិនត្រឹមត្រូវ!");
     }

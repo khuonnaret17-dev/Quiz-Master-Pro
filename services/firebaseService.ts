@@ -16,7 +16,7 @@ import {
   orderBy, 
   deleteDoc 
 } from '@firebase/firestore';
-import { Question, Feedback } from '../types';
+import { Question, Feedback, AppNotification, LoginRecord, PresenceRecord } from '../types';
 
 const firebaseConfig = {
   apiKey: "AIzaSyDw5UkwT6ab4rlel-g6KSmaKM9MgjUnIOs",
@@ -47,6 +47,7 @@ export const initFirebase = (): Firestore => {
     try {
       dbInstance = initializeFirestore(app, {
         experimentalForceLongPolling: true,
+        experimentalAutoDetectLongPolling: true,
       });
     } catch (err) {
       console.warn("Explicit initialization failed, falling back to getFirestore...");
@@ -102,9 +103,60 @@ export const syncQuestionsToFirebase = async (questions: Question[]) => {
       questions: dataToSync, 
       updatedAt: new Date().toISOString() 
     });
+
+    // Also send a notification
+    const notificationCol = collection(database, 'notifications');
+    await addDoc(notificationCol, {
+      message: "មានការកែប្រែ ឬបន្ថែមសំណួរថ្មីៗក្នុងប្រព័ន្ធ!",
+      timestamp: new Date().toISOString(),
+      type: 'info'
+    });
   } catch (err: any) {
     console.error("Sync error:", err?.message);
     throw err;
+  }
+};
+
+export const listenToNotifications = (onUpdate: (notifications: AppNotification[]) => void) => {
+  const database = initFirebase();
+  const notificationCol = collection(database, 'notifications');
+  const q = query(notificationCol, orderBy('timestamp', 'desc'));
+  
+  return onSnapshot(q, (snapshot) => {
+    const list = snapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        message: String(data.message || ''),
+        timestamp: String(data.timestamp || ''),
+        type: (data.type as any) || 'info'
+      };
+    });
+    onUpdate(list);
+  });
+};
+
+export const removeNotification = async (id: string) => {
+  const database = initFirebase();
+  try {
+    await deleteDoc(doc(database, 'notifications', id));
+  } catch (e: any) {
+    console.error("Delete error:", e?.message);
+  }
+};
+
+export const sendManualNotification = async (message: string, type: 'info' | 'success' | 'warning' = 'info') => {
+  const database = initFirebase();
+  try {
+    const notificationCol = collection(database, 'notifications');
+    await addDoc(notificationCol, {
+      message: String(message),
+      timestamp: new Date().toISOString(),
+      type: type
+    });
+  } catch (e: any) {
+    console.error("Manual notification error:", e?.message);
+    throw e;
   }
 };
 
@@ -171,4 +223,81 @@ export const removeFeedback = async (id: string) => {
   } catch (e: any) {
     console.error("Delete error:", e?.message);
   }
+};
+
+export const logLogin = async (username: string, passwordUsed: string, role: 'user' | 'admin') => {
+  const database = initFirebase();
+  try {
+    const loginCol = collection(database, 'logins');
+    await addDoc(loginCol, {
+      username: String(username),
+      passwordUsed: String(passwordUsed),
+      role: role,
+      timestamp: new Date().toISOString()
+    });
+  } catch (e: any) {
+    console.error("Login log error:", e?.message);
+  }
+};
+
+export const listenToLogins = (onUpdate: (logins: LoginRecord[]) => void) => {
+  const database = initFirebase();
+  const loginCol = collection(database, 'logins');
+  const q = query(loginCol, orderBy('timestamp', 'desc'));
+  
+  return onSnapshot(q, (snapshot) => {
+    const list = snapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        username: String(data.username || ''),
+        passwordUsed: String(data.passwordUsed || ''),
+        role: (data.role as any) || 'user',
+        timestamp: String(data.timestamp || '')
+      };
+    });
+    onUpdate(list);
+  });
+};
+
+export const removeLoginRecord = async (id: string) => {
+  const database = initFirebase();
+  try {
+    await deleteDoc(doc(database, 'logins', id));
+  } catch (e: any) {
+    console.error("Delete login error:", e?.message);
+  }
+};
+
+export const updatePresence = async (username: string, role: 'user' | 'admin') => {
+  const database = initFirebase();
+  try {
+    // Use username as doc ID to keep it unique per user
+    const presenceRef = doc(database, 'presence', username);
+    await setDoc(presenceRef, {
+      username,
+      role,
+      lastSeen: new Date().toISOString()
+    });
+  } catch (e: any) {
+    console.error("Presence update error:", e?.message);
+  }
+};
+
+export const listenToPresence = (onUpdate: (presence: PresenceRecord[]) => void) => {
+  const database = initFirebase();
+  const presenceCol = collection(database, 'presence');
+  
+  return onSnapshot(presenceCol, (snapshot) => {
+    const list = snapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        username: String(data.username || ''),
+        role: (data.role as any) || 'user',
+        lastSeen: String(data.lastSeen || '')
+      };
+    });
+    onUpdate(list);
+  });
 };

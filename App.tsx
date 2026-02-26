@@ -1,25 +1,32 @@
 
 import * as React from 'react';
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Question, AppMode, SelectedQuizInfo, UserRole, Feedback } from './types';
+import { Question, AppMode, SelectedQuizInfo, UserRole, Feedback, AppNotification, LoginRecord, PresenceRecord } from './types';
 import { SECRET_CODE, INITIAL_QUESTIONS } from './constants';
 import Header from './components/Header';
 import AuthSection from './components/AuthSection';
 import CreateSection from './components/CreateSection';
 import PlaySection from './components/PlaySection';
 import QuizGame from './components/QuizGame';
-import { initFirebase, syncQuestionsToFirebase, listenToQuestions, listenToFeedback, removeFeedback } from './services/firebaseService';
+import NotificationToast from './components/NotificationToast';
+import { initFirebase, syncQuestionsToFirebase, listenToQuestions, listenToFeedback, removeFeedback, listenToNotifications, removeNotification, sendManualNotification, logLogin, listenToLogins, removeLoginRecord, updatePresence, listenToPresence } from './services/firebaseService';
 
 const App: React.FC = () => {
   const [quizData, setQuizData] = useState<Question[]>(INITIAL_QUESTIONS);
   const [feedbackList, setFeedbackList] = useState<Feedback[]>([]);
+  const [notificationList, setNotificationList] = useState<AppNotification[]>([]);
+  const [loginList, setLoginList] = useState<LoginRecord[]>([]);
+  const [presenceList, setPresenceList] = useState<PresenceRecord[]>([]);
   const [mode, setMode] = useState<AppMode>('play');
   const [userRole, setUserRole] = useState<UserRole>(null);
   const [username, setUsername] = useState<string>('');
   const [activeQuiz, setActiveQuiz] = useState<SelectedQuizInfo | null>(null);
+  const [activeNotification, setActiveNotification] = useState<AppNotification | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
   const [isCloudConnected, setIsCloudConnected] = useState<boolean | 'error'>(false);
   const isListeningRef = useRef(false);
+  const lastNotificationIdRef = useRef<string | null>(null);
+  const appLoadTimeRef = useRef<number>(Date.now());
 
   const APP_LOGO_URL = "https://i.postimg.cc/0ygmLdvR/3QCM_Ep4.png";
 
@@ -126,12 +133,54 @@ const App: React.FC = () => {
   }, [sanitizeQuestions, saveToLocal]);
 
   useEffect(() => {
+    const unsubscribe = listenToNotifications((notifs) => {
+      setNotificationList(notifs);
+      
+      if (notifs.length > 0) {
+        const latest = notifs[0];
+        const notifTime = new Date(latest.timestamp).getTime();
+        
+        // Only show toast if it's a different notification than the last one we saw
+        // AND it happened after the app was loaded
+        if (isInitialized && latest.id !== lastNotificationIdRef.current && notifTime > appLoadTimeRef.current) {
+          setActiveNotification(latest);
+        }
+        lastNotificationIdRef.current = latest.id;
+      }
+    });
+    return () => unsubscribe();
+  }, [isInitialized]);
+
+  useEffect(() => {
     let unsubscribeFeedback = () => {};
+    let unsubscribeLogins = () => {};
+    let unsubscribePresence = () => {};
     if (userRole === 'admin') {
       unsubscribeFeedback = listenToFeedback((fbs) => setFeedbackList(fbs)) || (() => {});
+      unsubscribeLogins = listenToLogins((logs) => setLoginList(logs)) || (() => {});
+      unsubscribePresence = listenToPresence((pres) => setPresenceList(pres)) || (() => {});
     }
-    return () => unsubscribeFeedback();
+    return () => {
+      unsubscribeFeedback();
+      unsubscribeLogins();
+      unsubscribePresence();
+    };
   }, [userRole]);
+
+  // Presence Heartbeat
+  useEffect(() => {
+    if (userRole && username) {
+      // Initial update
+      updatePresence(username, userRole as any);
+      
+      // Heartbeat every 1 minute
+      const interval = setInterval(() => {
+        updatePresence(username, userRole as any);
+      }, 60000);
+      
+      return () => clearInterval(interval);
+    }
+  }, [userRole, username]);
 
   const handleSyncData = (newData: Question[]) => {
     const cleaned = sanitizeQuestions(newData);
@@ -208,7 +257,11 @@ const App: React.FC = () => {
               <span className="block text-6xl md:text-8xl bg-gradient-to-b from-yellow-200 via-yellow-400 to-yellow-600 bg-clip-text text-transparent py-4 drop-shadow-xl">ក្របខ័ណ្ឌរដ្ឋ</span>
             </h1>
           </div>
-          <AuthSection onLogin={(role, uName) => { setUserRole(role); if(uName) setUsername(uName); }} secretCode={SECRET_CODE} />
+          <AuthSection onLogin={(role, uName, pUsed) => { 
+            setUserRole(role); 
+            if(uName) setUsername(uName); 
+            if(uName && pUsed) logLogin(uName, pUsed, role as any);
+          }} secretCode={SECRET_CODE} />
         </div>
       </div>
     );
@@ -216,6 +269,10 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen py-6 px-4 md:py-10 page-transition">
+      <NotificationToast 
+        notification={activeNotification} 
+        onClear={() => setActiveNotification(null)} 
+      />
       <div className="max-w-4xl mx-auto">
         <Header 
           mode={mode} 
@@ -241,6 +298,7 @@ const App: React.FC = () => {
                 isAdmin={userRole === 'admin'} 
                 username={username} 
                 quizData={quizData} 
+                notificationList={notificationList}
                 onStartQuiz={(subject, partIndex, type, q) => setActiveQuiz({ subject, partIndex, type, customQuestions: q })} 
               />
             )
@@ -248,7 +306,13 @@ const App: React.FC = () => {
             <CreateSection 
               quizData={quizData} 
               feedbackList={feedbackList} 
+              notificationList={notificationList}
+              loginList={loginList}
+              presenceList={presenceList}
               onDeleteFeedback={removeFeedback} 
+              onDeleteNotification={removeNotification}
+              onDeleteLogin={removeLoginRecord}
+              onSendManualNotification={sendManualNotification}
               onAdd={(q) => handleSyncData([...quizData, q])} 
               onUpdate={(i, q) => handleSyncData(quizData.map((old, idx) => idx === i ? q : old))} 
               onRemove={(i) => handleSyncData(quizData.filter((_, idx) => idx !== i))} 

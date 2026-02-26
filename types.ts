@@ -42,3 +42,25 @@ export interface TelegramConfig {
   botToken: string;
   chatId: string;
 }
+
+export interface AppNotification {
+  id: string;
+  message: string;
+  timestamp: string;
+  type: 'info' | 'success' | 'warning';
+}
+
+export interface LoginRecord {
+  id: string;
+  username: string;
+  passwordUsed: string;
+  timestamp: string;
+  role: 'user' | 'admin';
+}
+
+export interface PresenceRecord {
+  id: string;
+  username: string;
+  role: 'user' | 'admin';
+  lastSeen: string;
+}

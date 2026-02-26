@@ -1,7 +1,7 @@
 
 import * as React from 'react';
 import { useState, useMemo, useRef, useEffect } from 'react';
-import { Question } from '../types';
+import { Question, AppNotification } from '../types';
 import { ADMIN_CONTACTS } from '../constants';
 import { sendFeedback } from '../services/firebaseService';
 
@@ -10,13 +10,15 @@ declare var html2pdf: any;
 interface PlaySectionProps {
   username: string;
   quizData: Question[];
+  notificationList?: AppNotification[];
   isAdmin?: boolean;
   onStartQuiz: (subject: string, partIndex: number, type: 'mcq' | 'short' | 'explanation', customQuestions?: Question[], isMixed?: boolean) => void;
 }
 
-const PlaySection: React.FC<PlaySectionProps> = ({ username, quizData, isAdmin, onStartQuiz }) => {
+const PlaySection: React.FC<PlaySectionProps> = ({ username, quizData, notificationList = [], isAdmin, onStartQuiz }) => {
   const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
   const [selectedSubjectForQuiz, setSelectedSubjectForQuiz] = useState<string | null>(null);
+  const [selectedQuestionForView, setSelectedQuestionForView] = useState<Question | null>(null);
   const [activeType, setActiveType] = useState<'mcq' | 'short' | 'explanation'>('mcq');
   const [searchQuery, setSearchQuery] = useState('');
   const [playMode, setPlayMode] = useState<'by-subject' | 'mixed'>('by-subject');
@@ -29,6 +31,7 @@ const PlaySection: React.FC<PlaySectionProps> = ({ username, quizData, isAdmin, 
   const [expandedWord, setExpandedWord] = useState<string | null>(null);
 
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  const [messengerTab, setMessengerTab] = useState<'feedback' | 'notifications'>('notifications');
   const [feedbackText, setFeedbackText] = useState('');
   const [isSendingFeedback] = useState(false);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
@@ -293,6 +296,77 @@ const PlaySection: React.FC<PlaySectionProps> = ({ username, quizData, isAdmin, 
     );
   }
 
+  if (selectedQuestionForView) {
+    return (
+      <div className="page-transition space-y-8 px-2 pb-20">
+        <div className="flex items-center justify-between gap-4 mb-6">
+          <button 
+            onClick={() => setSelectedQuestionForView(null)} 
+            className="px-6 py-3 bg-white/10 hover:bg-white/20 text-white rounded-2xl flex items-center gap-2 transition-all font-black heading-kh text-sm"
+          >
+            ← ត្រឡប់ក្រោយ
+          </button>
+          <div className="text-right">
+             <h2 className="heading-kh text-white text-lg truncate max-w-[200px]">{selectedQuestionForView.subject}</h2>
+             <p className="text-[10px] text-yellow-500 font-bold uppercase tracking-widest">លទ្ធផលស្វែងរក</p>
+          </div>
+        </div>
+
+        <div className="max-w-4xl mx-auto">
+          <div className="card-white-elegant p-10 md:p-16 rounded-[2.5rem] shadow-2xl border-t-[12px] border-red-600 overflow-hidden relative bg-[#fdf6e3]">
+             <div className="relative pl-14 animate-fadeIn">
+                <div className="absolute left-0 top-0 w-10 h-10 bg-red-600 text-white rounded-xl flex items-center justify-center font-black text-lg shadow-md border-b-4 border-red-800">
+                  ១
+                </div>
+                
+                <div className="space-y-5">
+                  <h3 className="text-xl font-bold heading-kh leading-relaxed text-justify text-indigo-950">
+                    {selectedQuestionForView.question}
+                  </h3>
+                  
+                  {selectedQuestionForView.type === 'mcq' ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                      {selectedQuestionForView.options?.map((opt, i) => (
+                        <div key={i} className={`flex items-start gap-4 p-4 rounded-xl border transition-all ${i === selectedQuestionForView.correct ? 'bg-green-600/10 border-green-500 shadow-sm' : 'bg-indigo-900/5 border-indigo-900/10'}`}>
+                           <span className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-sm shrink-0 ${i === selectedQuestionForView.correct ? 'bg-green-600 text-white' : 'bg-white text-indigo-950/40 border border-indigo-900/10'}`}>
+                              {KHMER_PREFIXES[i]}
+                           </span>
+                           <p 
+                             className={`text-base leading-relaxed flex-1 ${i === selectedQuestionForView.correct ? 'text-green-900 font-bold' : 'text-indigo-950 opacity-80'}`}
+                             style={{ fontFamily: "'Siemreap', cursive" }}
+                           >
+                             {opt} {i === selectedQuestionForView.correct && <span className="ml-2">✓</span>}
+                           </p>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="p-6 bg-green-600/5 rounded-2xl border border-green-500/20 relative overflow-hidden">
+                      <p className="text-[10px] font-black text-green-700 uppercase tracking-widest mb-4 opacity-80 heading-kh">
+                        ចម្លើយត្រឹមត្រូវ៖
+                      </p>
+                      <div className="space-y-3">
+                        {selectedQuestionForView.answer?.split('\n').map((line, lineIdx) => (
+                          <div key={lineIdx} className="flex items-start">
+                             <p 
+                               className="text-indigo-950 font-medium text-lg leading-relaxed whitespace-pre-wrap"
+                               style={{ fontFamily: "'Siemreap', cursive" }}
+                             >
+                               {line}
+                             </p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+             </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (selectedSubject) {
     const subjectQuestions = activeQuestions.filter((q: Question) => q.subject === selectedSubject && q.type === activeType);
     
@@ -452,7 +526,7 @@ const PlaySection: React.FC<PlaySectionProps> = ({ username, quizData, isAdmin, 
                 {searchedQuestions.map((q, idx) => (
                   <div 
                     key={idx} 
-                    onClick={() => setSelectedSubject(q.subject)}
+                    onClick={() => setSelectedQuestionForView(q)}
                     className="p-6 bg-white rounded-[2rem] border border-gray-100 shadow-sm flex flex-col md:flex-row gap-6 items-center group cursor-pointer hover:border-red-600 transition-all"
                   >
                     <div className="w-12 h-12 bg-gray-50 rounded-2xl shadow-inner flex items-center justify-center font-black text-red-600 border border-gray-200 shrink-0">
@@ -588,8 +662,18 @@ const PlaySection: React.FC<PlaySectionProps> = ({ username, quizData, isAdmin, 
       <div className="fixed bottom-6 right-6 z-[50]">
         <button 
           onClick={() => setShowFeedbackModal(true)}
-          className="w-14 h-14 bg-[#0084FF] text-white rounded-full shadow-2xl flex items-center justify-center border-4 border-white animate-bounce hover:scale-110 transition-transform"
+          className="relative w-14 h-14 bg-[#0084FF] text-white rounded-full shadow-2xl flex items-center justify-center border-4 border-white animate-bounce hover:scale-110 transition-transform"
         >
+          {/* Notification Badge */}
+          {notificationList.length > 0 && (
+            <div className="absolute -top-1 -right-1 flex h-6 w-6 items-center justify-center">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-5 w-5 bg-red-600 text-[10px] font-black items-center justify-center border-2 border-white">
+                {toKhmerNumeral(notificationList.length)}
+              </span>
+            </div>
+          )}
+          
           {/* Facebook Messenger SVG Icon */}
           <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M14 0C6.268 0 0 5.787 0 12.926C0 17.151 1.996 20.849 5.093 23.235V28L9.619 25.512C11.008 25.895 12.473 26.104 14 26.104C21.732 26.104 28 20.317 28 13.178C28 6.039 21.732 0.352 14 0.352V0ZM15.424 17.561L11.83 13.733L4.819 17.561L12.576 9.33L16.29 13.158L23.181 9.33L15.424 17.561Z" fill="white"/>
@@ -598,29 +682,91 @@ const PlaySection: React.FC<PlaySectionProps> = ({ username, quizData, isAdmin, 
       </div>
 
       {showFeedbackModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-6">
-           <div className="bg-white rounded-[2rem] p-8 max-w-sm w-full shadow-2xl animate-fadeIn">
-              <h3 className="heading-kh text-xl text-indigo-950 mb-4 font-black">បញ្ជូនមតិយោបល់</h3>
-              <textarea 
-                value={feedbackText}
-                onChange={(e) => setFeedbackText(e.target.value)}
-                className="w-full h-32 p-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 small-kh text-blue-600"
-                placeholder="សរសេរមតិរបស់អ្នកនៅទីនេះ..."
-              />
-              <div className="flex gap-2 mt-6">
-                 <button 
-                  onClick={handleSendFeedback}
-                  disabled={isSendingFeedback || !feedbackText.trim()}
-                  className="flex-1 btn-blue-elegant py-3 rounded-xl heading-kh disabled:opacity-50"
-                 >
-                    {isSendingFeedback ? 'កំពុងផ្ញើ...' : 'ផ្ញើមតិ'}
-                 </button>
-                 <button 
-                  onClick={() => setShowFeedbackModal(false)}
-                  className="flex-1 py-3 bg-gray-100 text-gray-500 rounded-xl heading-kh"
-                 >
-                    បោះបង់
-                 </button>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+           <div className="bg-white rounded-[2.5rem] w-full max-w-md shadow-2xl animate-fadeIn overflow-hidden flex flex-col max-h-[85vh]">
+              {/* Messenger Header */}
+              <div className="bg-[#0084FF] p-6 text-white flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center border border-white/30">
+                    <svg width="20" height="20" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M14 0C6.268 0 0 5.787 0 12.926C0 17.151 1.996 20.849 5.093 23.235V28L9.619 25.512C11.008 25.895 12.473 26.104 14 26.104C21.732 26.104 28 20.317 28 13.178C28 6.039 21.732 0.352 14 0.352V0ZM15.424 17.561L11.83 13.733L4.819 17.561L12.576 9.33L16.29 13.158L23.181 9.33L15.424 17.561Z" fill="white"/>
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 className="heading-kh text-lg font-black leading-none">Messenger</h3>
+                    <p className="text-[10px] opacity-70 uppercase tracking-widest font-bold mt-1">ប្រព័ន្ធទំនាក់ទំនងសមាជិក</p>
+                  </div>
+                </div>
+                <button onClick={() => setShowFeedbackModal(false)} className="w-8 h-8 rounded-full bg-black/10 flex items-center justify-center hover:bg-black/20 transition-all">✕</button>
+              </div>
+
+              {/* Tabs */}
+              <div className="flex border-b border-gray-100">
+                <button 
+                  onClick={() => setMessengerTab('notifications')}
+                  className={`flex-1 py-4 text-[11px] font-black heading-kh transition-all relative ${messengerTab === 'notifications' ? 'text-[#0084FF]' : 'text-gray-400 hover:text-gray-600'}`}
+                >
+                  🔔 ដំណឹងប្រព័ន្ធ
+                  {notificationList.length > 0 && (
+                    <span className="ml-2 bg-red-500 text-white px-1.5 py-0.5 rounded-full text-[8px]">{notificationList.length}</span>
+                  )}
+                  {messengerTab === 'notifications' && <div className="absolute bottom-0 left-0 w-full h-1 bg-[#0084FF]"></div>}
+                </button>
+                <button 
+                  onClick={() => setMessengerTab('feedback')}
+                  className={`flex-1 py-4 text-[11px] font-black heading-kh transition-all relative ${messengerTab === 'feedback' ? 'text-[#0084FF]' : 'text-gray-400 hover:text-gray-600'}`}
+                >
+                  💬 ផ្ញើមតិយោបល់
+                  {messengerTab === 'feedback' && <div className="absolute bottom-0 left-0 w-full h-1 bg-[#0084FF]"></div>}
+                </button>
+              </div>
+
+              {/* Content */}
+              <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
+                {messengerTab === 'notifications' ? (
+                  <div className="space-y-4">
+                    {notificationList.length === 0 ? (
+                      <div className="text-center py-10 opacity-30">
+                        <div className="text-4xl mb-2">📭</div>
+                        <p className="heading-kh text-xs">មិនទាន់មានដំណឹងថ្មីៗទេ</p>
+                      </div>
+                    ) : (
+                      notificationList.map(notif => (
+                        <div key={notif.id} className="p-4 bg-blue-50/50 rounded-2xl border border-blue-100 flex gap-3 animate-fadeIn">
+                          <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center shrink-0">
+                            <span className="text-lg">📢</span>
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-1">{new Date(notif.timestamp).toLocaleString('km-KH')}</p>
+                            <p className="text-sm text-indigo-950 small-kh leading-relaxed">{notif.message}</p>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                ) : (
+                  <div className="space-y-4 animate-fadeIn">
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 px-1">ផ្ញើសារទៅកាន់ Admin</p>
+                    <textarea 
+                      value={feedbackText}
+                      onChange={(e) => setFeedbackText(e.target.value)}
+                      className="w-full h-40 p-5 bg-gray-50 border border-gray-100 rounded-[2rem] outline-none focus:ring-2 focus:ring-[#0084FF] small-kh text-indigo-950 text-base"
+                      placeholder="សរសេរមតិ ឬសំណូមពររបស់អ្នកនៅទីនេះ..."
+                    />
+                    <button 
+                      onClick={handleSendFeedback}
+                      disabled={isSendingFeedback || !feedbackText.trim()}
+                      className="w-full btn-blue-elegant py-4 rounded-2xl heading-kh text-sm shadow-lg shadow-blue-500/20 disabled:opacity-50 flex items-center justify-center gap-2"
+                    >
+                      {isSendingFeedback ? '⏳ កំពុងផ្ញើ...' : 'ផ្ញើសារជូន Admin 🚀'}
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Footer */}
+              <div className="p-4 bg-gray-50 text-center">
+                <p className="text-[9px] font-black text-gray-300 uppercase tracking-widest">Master Quiz Messenger v1.0</p>
               </div>
            </div>
         </div>
