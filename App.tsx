@@ -18,8 +18,12 @@ const App: React.FC = () => {
   const [loginList, setLoginList] = useState<LoginRecord[]>([]);
   const [presenceList, setPresenceList] = useState<PresenceRecord[]>([]);
   const [mode, setMode] = useState<AppMode>('play');
-  const [userRole, setUserRole] = useState<UserRole>(null);
-  const [username, setUsername] = useState<string>('');
+  const [userRole, setUserRole] = useState<UserRole>(() => {
+    return (localStorage.getItem('auth_role') as UserRole) || null;
+  });
+  const [username, setUsername] = useState<string>(() => {
+    return localStorage.getItem('auth_username') || '';
+  });
   const [activeQuiz, setActiveQuiz] = useState<SelectedQuizInfo | null>(null);
   const [activeNotification, setActiveNotification] = useState<AppNotification | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
@@ -98,7 +102,7 @@ const App: React.FC = () => {
     
     // Core initialization
     initFirebase();
-    
+
     const saved = localStorage.getItem('quiz_data');
     if (saved) { 
       try { 
@@ -215,6 +219,27 @@ const App: React.FC = () => {
     handleSyncData(reorderedData);
   };
 
+  const handleSwapQuestions = (subject: string, type: 'mcq' | 'short' | 'explanation', posA: number, posB: number) => {
+    const sameSubjectQuestions = quizData
+      .map((q, i) => ({ ...q, originalIndex: i }))
+      .filter(q => q.subject === subject && q.type === type);
+
+    const idxA = posA - 1;
+    const idxB = posB - 1;
+
+    if (idxA < 0 || idxA >= sameSubjectQuestions.length || idxB < 0 || idxB >= sameSubjectQuestions.length || idxA === idxB) {
+      return;
+    }
+
+    const originalIdxA = sameSubjectQuestions[idxA].originalIndex;
+    const originalIdxB = sameSubjectQuestions[idxB].originalIndex;
+
+    const newQuizData = [...quizData];
+    [newQuizData[originalIdxA], newQuizData[originalIdxB]] = [newQuizData[originalIdxB], newQuizData[originalIdxA]];
+
+    handleSyncData(newQuizData);
+  };
+
   const handleStartNextPart = (newPartIndex: number) => {
     if (activeQuiz) {
       setActiveQuiz({
@@ -259,7 +284,12 @@ const App: React.FC = () => {
           </div>
           <AuthSection onLogin={(role, uName, pUsed) => { 
             setUserRole(role); 
-            if(uName) setUsername(uName); 
+            if(uName) {
+              setUsername(uName);
+              localStorage.setItem('auth_username', uName);
+              localStorage.setItem('auth_role', role || '');
+              if (pUsed) localStorage.setItem('auth_password', pUsed);
+            }
             if(uName && pUsed) logLogin(uName, pUsed, role as any);
           }} secretCode={SECRET_CODE} />
         </div>
@@ -277,10 +307,15 @@ const App: React.FC = () => {
         <Header 
           mode={mode} 
           role={userRole} 
+          username={username}
           totalQuestions={quizData.length} 
           cloudStatus={isCloudConnected} 
           setMode={(m) => { setMode(m); setActiveQuiz(null); }} 
-          onLogout={() => { setUserRole(null); setUsername(''); }} 
+          onLogout={() => { 
+            setUserRole(null); 
+            setUsername(''); 
+            localStorage.removeItem('auth_role');
+          }} 
         />
         <main className="mt-6">
           {mode === 'play' ? (
@@ -320,8 +355,13 @@ const App: React.FC = () => {
               onUpdateSubject={(old, type, newName) => handleSyncData(quizData.map(q => (q.subject === old && q.type === type) ? { ...q, subject: newName.trim() } : q))} 
               onRemoveSubject={(sub, type) => handleSyncData(quizData.filter(q => !(q.subject === sub && q.type === type)))} 
               onReorderSubject={handleReorderSubject}
+              onSwapQuestions={handleSwapQuestions}
               onBatchAdd={(qs) => handleSyncData([...quizData, ...qs])} 
-              onLogout={() => { setUserRole(null); setUsername(''); }} 
+              onLogout={() => { 
+                setUserRole(null); 
+                setUsername(''); 
+                localStorage.removeItem('auth_role');
+              }} 
             />
           )}
         </main>

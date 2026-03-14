@@ -26,6 +26,7 @@ interface CreateSectionProps {
   onUpdateSubject: (subject: string, type: 'mcq' | 'short' | 'explanation', newName: string) => void;
   onRemoveSubject: (subject: string, type: 'mcq' | 'short' | 'explanation') => void;
   onReorderSubject: (subject: string, type: 'mcq' | 'short' | 'explanation', direction: 'up' | 'down') => void;
+  onSwapQuestions: (subject: string, type: 'mcq' | 'short' | 'explanation', posA: number, posB: number) => void;
   onBatchAdd: (qs: Question[]) => void;
   onLogout: () => void;
 }
@@ -37,7 +38,7 @@ type TelegramSendMode = 'poll' | 'image' | 'text';
 type QuestionWithIndex = Question & { originalIndex: number };
 
 const CreateSection: React.FC<CreateSectionProps> = ({ 
-  quizData, feedbackList = [], notificationList = [], loginList = [], presenceList = [], onDeleteFeedback, onDeleteNotification, onDeleteLogin, onSendManualNotification, onAdd, onUpdate, onRemove, onToggleSubject, onUpdateSubject, onRemoveSubject, onReorderSubject, onBatchAdd
+  quizData, feedbackList = [], notificationList = [], loginList = [], presenceList = [], onDeleteFeedback, onDeleteNotification, onDeleteLogin, onSendManualNotification, onAdd, onUpdate, onRemove, onToggleSubject, onUpdateSubject, onRemoveSubject, onReorderSubject, onSwapQuestions, onBatchAdd
 }) => {
   const APP_LOGO_URL = "https://i.postimg.cc/0ygmLdvR/3QCM_Ep4.png";
   const KHMER_PREFIXES = ['ក', 'ខ', 'គ', 'ឃ'];
@@ -71,6 +72,9 @@ const CreateSection: React.FC<CreateSectionProps> = ({
   const [deletingSubject, setDeletingSubject] = useState<{name: string, type: 'mcq' | 'short' | 'explanation'} | null>(null);
   // New state for deleting individual question
   const [deletingQuestion, setDeletingQuestion] = useState<{q: Question, index: number} | null>(null);
+  const [isSwapModalOpen, setIsSwapModalOpen] = useState(false);
+  const [swapFrom, setSwapFrom] = useState('');
+  const [swapTo, setSwapTo] = useState('');
 
   const [footerLeft, setFooterLeft] = useState('Master Quiz KH');
   const [footerRightTop, setFooterRightTop] = useState('t.me/web_qcm_q_and_a');
@@ -1045,6 +1049,71 @@ const CreateSection: React.FC<CreateSectionProps> = ({
         </div>
       )}
 
+      {/* NEW: Question Swap Modal */}
+      {isSwapModalOpen && viewingQuestions && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[250] flex items-center justify-center p-4 animate-fadeIn">
+          <div className="bg-white p-8 rounded-[3rem] max-w-sm w-full shadow-2xl relative border border-white/20 text-center">
+            <div className="w-20 h-20 bg-orange-100 text-orange-600 rounded-full flex items-center justify-center text-4xl mx-auto mb-6">🔄</div>
+            <h3 className="heading-kh text-xl mb-2 text-indigo-950 font-black">ប្តូរលំដាប់សំណួរ</h3>
+            <p className="small-kh text-gray-500 mb-6 text-sm">
+              បញ្ចូលលេខរៀងសំណួរដែលអ្នកចង់ប្តូរ (ឧទាហរណ៍៖ ៨-២)
+            </p>
+            <div className="flex items-center gap-4 mb-8">
+              <div className="flex-1">
+                <label className="text-[10px] font-black text-gray-400 uppercase mb-1 block">ពីលេខ</label>
+                <input 
+                  type="number" 
+                  value={swapFrom}
+                  onChange={(e) => setSwapFrom(e.target.value)}
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-center font-black text-blue-600 outline-none focus:ring-2 focus:ring-orange-500"
+                  placeholder="?"
+                />
+              </div>
+              <div className="text-2xl pt-4 text-gray-300">⇄</div>
+              <div className="flex-1">
+                <label className="text-[10px] font-black text-gray-400 uppercase mb-1 block">ទៅលេខ</label>
+                <input 
+                  type="number" 
+                  value={swapTo}
+                  onChange={(e) => setSwapTo(e.target.value)}
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-center font-black text-blue-600 outline-none focus:ring-2 focus:ring-orange-500"
+                  placeholder="?"
+                />
+              </div>
+            </div>
+            <div className="flex flex-col gap-3">
+              <button 
+                onClick={() => {
+                  const from = parseInt(swapFrom);
+                  const to = parseInt(swapTo);
+                  if (!isNaN(from) && !isNaN(to)) {
+                    onSwapQuestions(viewingQuestions.name, viewingQuestions.type, from, to);
+                    setSwapFrom('');
+                    setSwapTo('');
+                    setIsSwapModalOpen(false);
+                  } else {
+                    alert("សូមបញ្ចូលលេខរៀងឱ្យបានត្រឹមត្រូវ!");
+                  }
+                }} 
+                className="w-full py-4 bg-orange-600 text-white rounded-2xl heading-kh font-black shadow-lg hover:bg-orange-700"
+              >
+                យល់ព្រមប្តូរ
+              </button>
+              <button 
+                onClick={() => {
+                  setIsSwapModalOpen(false);
+                  setSwapFrom('');
+                  setSwapTo('');
+                }} 
+                className="w-full py-4 bg-gray-100 text-gray-600 rounded-2xl heading-kh font-black hover:bg-gray-200"
+              >
+                បោះបង់
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {viewingQuestions && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-md z-[110] flex items-center justify-center p-4 animate-fadeIn">
           <div className="bg-white p-8 rounded-[3rem] max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-2xl relative border border-white/20">
@@ -1063,12 +1132,21 @@ const CreateSection: React.FC<CreateSectionProps> = ({
                   />
                   <span className="absolute left-3 top-2.5 opacity-30 text-sm">🔍</span>
                </div>
+               <button 
+                  onClick={() => setIsSwapModalOpen(true)}
+                  className="px-4 py-2.5 bg-orange-500 text-white rounded-xl font-black heading-kh text-[10px] shadow-md hover:bg-orange-600 transition-all flex items-center gap-2"
+                >
+                  <span>🔄</span>
+                  <span>ប្តូរលំដាប់ (Swap)</span>
+                </button>
                <button onClick={() => setViewingQuestions(null)} className="w-10 h-10 bg-gray-100 rounded-xl hover:bg-red-500 hover:text-white transition-all flex items-center justify-center text-xl">✕</button>
             </div>
             <div className="space-y-4">
               {activeQuestionsInView.map((q, idx) => (
                 <div key={idx} className="p-6 bg-gray-50 rounded-[2rem] border border-gray-100 flex flex-col md:flex-row gap-6 items-center">
-                  <span className="w-12 h-12 bg-white rounded-2xl shadow-inner flex items-center justify-center font-black text-[#800000] shrink-0 border border-gray-200">{toKhmerNumeral(idx + 1)}</span>
+                  <div className="flex items-center gap-3 shrink-0">
+                    <span className="w-12 h-12 bg-white rounded-2xl shadow-inner flex items-center justify-center font-black text-[#800000] border border-gray-200">{toKhmerNumeral(idx + 1)}</span>
+                  </div>
                   <p className="flex-1 heading-kh text-sm text-indigo-950 text-justify leading-relaxed">{q.question}</p>
                   <div className="flex gap-2 shrink-0">
                     <button onClick={() => setConfirmIndividualSend({ q, idx: q.originalIndex })} className="px-6 py-3 bg-blue-600 text-white rounded-2xl text-[10px] font-black shadow-lg">✈️ Telegram</button>

@@ -11,8 +11,8 @@ interface AuthSectionProps {
 
 const AuthSection: React.FC<AuthSectionProps> = ({ onLogin, secretCode }) => {
   const [view, setView] = useState<'main' | 'user_login' | 'admin_login'>('main');
-  const [userInput, setUserInput] = useState('');
-  const [passInput, setPassInput] = useState('');
+  const [userInput, setUserInput] = useState(() => localStorage.getItem('auth_username') || '');
+  const [passInput, setPassInput] = useState(() => localStorage.getItem('auth_password') || '');
 
   const handleAdminVerify = () => {
     if (passInput === SECRET_CODE) {

@@ -5,13 +5,14 @@ import { AppMode, UserRole } from '../types';
 interface HeaderProps {
   mode: AppMode;
   role: UserRole;
+  username?: string;
   totalQuestions: number;
   cloudStatus?: boolean | 'error';
   setMode: (mode: AppMode) => void;
   onLogout: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ mode, role, totalQuestions, cloudStatus, setMode, onLogout }) => {
+const Header: React.FC<HeaderProps> = ({ mode, role, username, totalQuestions, cloudStatus, setMode, onLogout }) => {
   // Logo URL ថ្មីបំផុតដែលអ្នកបានផ្ដល់ឱ្យ
   const APP_LOGO_URL = "https://i.postimg.cc/0ygmLdvR/3QCM_Ep4.png";
 
@@ -48,9 +49,14 @@ const Header: React.FC<HeaderProps> = ({ mode, role, totalQuestions, cloudStatus
       <div className="flex justify-center items-center gap-3 mb-8 w-full max-w-sm px-4">
         <div className="flex-1 flex items-center justify-between gap-4 bg-white/95 backdrop-blur-md px-6 py-3 rounded-2xl border border-white/20 shadow-xl overflow-hidden relative group">
           <div className="absolute inset-0 bg-gradient-to-r from-indigo-50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-          <span className="relative text-indigo-950 text-[9px] font-black uppercase tracking-widest small-kh">សំណួរក្នុងប្រព័ន្ធ</span>
-          {/* ប្តូរពណ៌ពី text-maroon-bold ទៅជា text-red-600 ដើម្បីបានពណ៌ក្រហមភ្លឺ */}
-          <span className="relative text-2xl font-black text-red-600">{totalQuestions}</span>
+          <div className="relative flex flex-col items-start">
+            <span className="text-indigo-950 text-[8px] font-black uppercase tracking-widest small-kh opacity-60">សមាជិក</span>
+            <span className="text-indigo-900 text-[11px] font-bold truncate max-w-[100px]">{username || 'ភ្ញៀវ'}</span>
+          </div>
+          <div className="relative flex flex-col items-end">
+            <span className="text-indigo-950 text-[8px] font-black uppercase tracking-widest small-kh opacity-60">សំណួរ</span>
+            <span className="text-xl font-black text-red-600 leading-none">{totalQuestions}</span>
+          </div>
         </div>
         
         <button 

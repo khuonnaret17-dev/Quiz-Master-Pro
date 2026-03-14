@@ -169,6 +169,12 @@ const QuizGame: React.FC<QuizGameProps> = ({ subject, partIndex, type, allSubjec
     );
   }
 
+  const handleRetry = () => {
+    setState({
+      currentQuestionIndex: 0, score: 0, isFinished: false, selectedAnswer: null, userInput: '', showCorrect: false, userAnswers: [], isReviewing: false
+    });
+  };
+
   // Final Results Screen
   if (state.isFinished) {
     const percentage = Math.round((state.score / partQuestions.length) * 100);
@@ -194,12 +200,20 @@ const QuizGame: React.FC<QuizGameProps> = ({ subject, partIndex, type, allSubjec
           </div>
 
           <div className="space-y-3">
-            <button 
-              onClick={() => setState(prev => ({ ...prev, isReviewing: true }))}
-              className="w-full py-4 bg-emerald-50 text-emerald-700 rounded-2xl border-2 border-emerald-100 font-black heading-kh shadow-sm hover:bg-emerald-100 transition-all"
-            >
-              👁️ ពិនិត្យឡើងវិញ
-            </button>
+            <div className="grid grid-cols-2 gap-3">
+              <button 
+                onClick={() => setState(prev => ({ ...prev, isReviewing: true }))}
+                className="py-4 bg-emerald-50 text-emerald-700 rounded-2xl border-2 border-emerald-100 font-black heading-kh shadow-sm hover:bg-emerald-100 transition-all flex items-center justify-center gap-2"
+              >
+                👁️ ពិនិត្យ
+              </button>
+              <button 
+                onClick={handleRetry}
+                className="py-4 bg-indigo-50 text-indigo-700 rounded-2xl border-2 border-indigo-100 font-black heading-kh shadow-sm hover:bg-indigo-100 transition-all flex items-center justify-center gap-2"
+              >
+                🔄 ម្ដងទៀត
+              </button>
+            </div>
             
             {hasNextPart && (
               <button 
