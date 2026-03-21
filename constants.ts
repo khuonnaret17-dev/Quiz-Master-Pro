@@ -213,6 +213,22 @@ export const INITIAL_QUESTIONS: Question[] = [
     type: "explanation",
     answer: "ជាគោលការណ៍នៃការធ្វើសេចក្តីសម្រេចចិត្តដែលចែងថា សេចក្តីសម្រេចចិត្តទាំងឡាយត្រូវធ្វើឡើងនៅកម្រិតទាបបំផុត ឬនៅកៀកជិតបំផុតជាមួយអ្នកទទួលសេវា។",
     isActive: true
+  },
+  {
+    subject: "English Grammar",
+    question: "She asked Steve … her urgently.",
+    type: "mcq",
+    options: ["calling", "call", "to call"],
+    correct: 2,
+    isActive: true
+  },
+  {
+    subject: "English Grammar",
+    question: "I told her … me back.",
+    type: "mcq",
+    options: ["call", "to call", "called"],
+    correct: 1,
+    isActive: true
   }
 ];
 

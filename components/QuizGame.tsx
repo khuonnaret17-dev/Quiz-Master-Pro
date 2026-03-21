@@ -22,9 +22,10 @@ function shuffleArray<T>(array: T[]): T[] {
 }
 
 const QuizGame: React.FC<QuizGameProps> = ({ subject, partIndex, type, allSubjectQuestions, onExit, onStartNextPart }) => {
-  const KHMER_PREFIXES = ['ក', 'ខ', 'គ', 'ឃ'];
+  const isEnglish = subject.toLowerCase().includes('english');
+  const PREFIXES = isEnglish ? ['A', 'B', 'C', 'D'] : ['ក', 'ខ', 'គ', 'ឃ'];
   const KHMER_DIGITS = ['០', '១', '២', '៣', '៤', '៥', '៦', '៧', '៨', '៩'];
-  const toKhmerNumeral = (n: number) => n.toString().split('').map(digit => KHMER_DIGITS[parseInt(digit)] || digit).join('');
+  const formatNumber = (n: number) => isEnglish ? n.toString() : n.toString().split('').map(digit => KHMER_DIGITS[parseInt(digit)] || digit).join('');
 
   const [isMuted, setIsMuted] = useState(false);
   const correctAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -128,7 +129,7 @@ const QuizGame: React.FC<QuizGameProps> = ({ subject, partIndex, type, allSubjec
             return (
               <div key={qIdx} className={`card-white-elegant p-6 border-l-8 ${isCorrect ? 'border-emerald-500' : 'border-red-500'}`}>
                 <div className="flex gap-4 mb-4">
-                  <span className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-white shrink-0 ${isCorrect ? 'bg-emerald-500' : 'bg-red-500'}`}>{toKhmerNumeral(qIdx + 1)}</span>
+                  <span className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-white shrink-0 ${isCorrect ? 'bg-emerald-500' : 'bg-red-500'}`}>{formatNumber(qIdx + 1)}</span>
                   <h3 className="heading-kh font-bold text-lg text-indigo-950 leading-relaxed">{q.question}</h3>
                 </div>
                 
@@ -141,7 +142,7 @@ const QuizGame: React.FC<QuizGameProps> = ({ subject, partIndex, type, allSubjec
                       
                       return (
                         <div key={oIdx} className={`p-3 rounded-xl border flex items-center gap-3 text-sm ${style}`}>
-                          <span className="w-6 h-6 rounded flex items-center justify-center font-black text-xs bg-white/50">{KHMER_PREFIXES[oIdx]}</span>
+                          <span className="w-6 h-6 rounded flex items-center justify-center font-black text-xs bg-white/50">{PREFIXES[oIdx]}</span>
                           {opt}
                           {oIdx === q.correct && <span className="ml-auto text-emerald-600">✓</span>}
                           {oIdx === userAnswer && oIdx !== q.correct && <span className="ml-auto text-red-600">✕</span>}
@@ -185,17 +186,17 @@ const QuizGame: React.FC<QuizGameProps> = ({ subject, partIndex, type, allSubjec
           <div className="text-7xl mb-6">🏆</div>
           <h2 className="text-2xl font-black mb-2 heading-kh text-indigo-950">បញ្ចប់ការ{type === 'explanation' ? 'រៀន' : 'ធ្វើតេស្ត'}</h2>
           
-          {type !== 'explanation' && <div className="text-7xl font-black text-indigo-900 my-8 drop-shadow-sm">{toKhmerNumeral(percentage)}%</div>}
+          {type !== 'explanation' && <div className="text-7xl font-black text-indigo-900 my-8 drop-shadow-sm">{formatNumber(percentage)}%</div>}
           
           <div className="flex justify-center gap-8 mb-10 mt-8">
             <div className="text-center">
               <p className="text-[10px] uppercase font-black text-gray-400 mb-1">{type === 'explanation' ? 'បានរៀន' : 'ត្រឹមត្រូវ'}</p>
-              <p className="text-2xl font-black text-emerald-600">{toKhmerNumeral(state.score)}</p>
+              <p className="text-2xl font-black text-emerald-600">{formatNumber(state.score)}</p>
             </div>
             <div className="h-10 w-[1px] bg-gray-100"></div>
             <div className="text-center">
               <p className="text-[10px] uppercase font-black text-gray-400 mb-1">សរុប</p>
-              <p className="text-2xl font-black text-indigo-950">{toKhmerNumeral(partQuestions.length)}</p>
+              <p className="text-2xl font-black text-indigo-950">{formatNumber(partQuestions.length)}</p>
             </div>
           </div>
 
@@ -259,12 +260,12 @@ const QuizGame: React.FC<QuizGameProps> = ({ subject, partIndex, type, allSubjec
               ← ត្រឡប់ក្រោយ
             </button>
             <span className="text-indigo-900 font-black text-[9px] uppercase tracking-[0.2em] bg-indigo-50 px-4 py-1.5 rounded-full w-fit border border-indigo-100">
-              {subject} - ភាគ {toKhmerNumeral(partIndex + 1)}
+              {subject} - ភាគ {formatNumber(partIndex + 1)}
             </span>
           </div>
           <div className="flex items-baseline gap-2">
-             <span className="text-5xl font-black text-indigo-950 leading-none">{toKhmerNumeral(state.currentQuestionIndex + 1)}</span>
-             <span className="text-xl font-black text-gray-300">/ {toKhmerNumeral(partQuestions.length)}</span>
+             <span className="text-5xl font-black text-indigo-950 leading-none">{formatNumber(state.currentQuestionIndex + 1)}</span>
+             <span className="text-xl font-black text-gray-300">/ {formatNumber(partQuestions.length)}</span>
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -276,7 +277,7 @@ const QuizGame: React.FC<QuizGameProps> = ({ subject, partIndex, type, allSubjec
           </button>
           <div className="bg-indigo-950 text-white px-6 py-3 rounded-2xl font-black text-xl shadow-lg flex items-center gap-3">
             <span className="text-xs opacity-50 font-medium">ពិន្ទុ</span>
-            <span>{toKhmerNumeral(state.score)}</span>
+            <span>{formatNumber(state.score)}</span>
           </div>
         </div>
       </div>
@@ -315,7 +316,7 @@ const QuizGame: React.FC<QuizGameProps> = ({ subject, partIndex, type, allSubjec
                   className={`text-left p-4.5 md:p-5 rounded-2xl transition-all duration-300 font-bold text-base md:text-lg flex items-center gap-5 small-kh group ${containerStyle}`}
                 >
                   <span className={`w-10 h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center font-black text-lg md:text-xl shrink-0 transition-transform group-active:scale-90 ${prefixStyle}`}>
-                    {KHMER_PREFIXES[i]}
+                    {PREFIXES[i]}
                   </span>
                   <span className="flex-1 leading-relaxed">{opt}</span>
                 </button>

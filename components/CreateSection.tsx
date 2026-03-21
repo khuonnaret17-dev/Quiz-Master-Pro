@@ -41,7 +41,6 @@ const CreateSection: React.FC<CreateSectionProps> = ({
   quizData, feedbackList = [], notificationList = [], loginList = [], presenceList = [], onDeleteFeedback, onDeleteNotification, onDeleteLogin, onSendManualNotification, onAdd, onUpdate, onRemove, onToggleSubject, onUpdateSubject, onRemoveSubject, onReorderSubject, onSwapQuestions, onBatchAdd
 }) => {
   const APP_LOGO_URL = "https://i.postimg.cc/0ygmLdvR/3QCM_Ep4.png";
-  const KHMER_PREFIXES = ['ក', 'ខ', 'គ', 'ឃ'];
   const KHMER_DIGITS = ['០', '១', '២', '៣', '៤', '៥', '៦', '៧', '៨', '៩'];
   const CAMBODIA_TITLE = "ព្រះរាជាណាចក្រកម្ពុជា";
   const CAMBODIA_MOTTO = "ជាតិ សាសនា ព្រះមហាក្សត្រ";
@@ -60,6 +59,15 @@ const CreateSection: React.FC<CreateSectionProps> = ({
   
   const [viewingExport, setViewingExport] = useState<{name: string, type: 'mcq' | 'short' | 'explanation', mode: 'pdf' | 'image'} | null>(null);
   const [viewingQuestions, setViewingQuestions] = useState<{name: string, type: 'mcq' | 'short' | 'explanation'} | null>(null);
+
+  const [previewQ, setPreviewQ] = useState<Question | null>(null);
+
+  const toKhmerNumeral = (n: number) => n.toString().split('').map(digit => KHMER_DIGITS[parseInt(digit)] || digit).join('');
+
+  const isEnglish = (viewingExport?.name || viewingQuestions?.name || subject || "").toLowerCase().includes('english');
+  const PREFIXES = isEnglish ? ['A', 'B', 'C', 'D'] : ['ក', 'ខ', 'គ', 'ឃ'];
+  const formatNumber = (n: number) => isEnglish ? n.toString() : toKhmerNumeral(n);
+
   const [selectedTemplate, setSelectedTemplate] = useState<ExportTemplate>('classic');
   const [includeAnswer, setIncludeAnswer] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -91,9 +99,6 @@ const CreateSection: React.FC<CreateSectionProps> = ({
   const imageTemplateRef = useRef<HTMLDivElement>(null);
   const posterTemplateRef = useRef<HTMLDivElement>(null);
   const pdfTemplateRef = useRef<HTMLDivElement>(null);
-  const [previewQ, setPreviewQ] = useState<Question | null>(null);
-
-  const toKhmerNumeral = (n: number) => n.toString().split('').map(digit => KHMER_DIGITS[parseInt(digit)] || digit).join('');
 
   const onlineUsers = useMemo(() => {
     const fiveMinsAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
@@ -221,7 +226,7 @@ const CreateSection: React.FC<CreateSectionProps> = ({
         const blob = await captureElementBlob(imageTemplateRef.current);
         if (blob) {
           const label = q.type === 'explanation' ? 'ពាក្យ' : 'សំណួរ';
-          const caption = `📌 *${label}ទី ${toKhmerNumeral(idx + 1)}*\n\n📋 វិញ្ញាសា៖ ${q.subject}\n✨ ផ្តល់ជូនដោយ Master Quiz KH`;
+          const caption = `📌 *${label}ទី ${formatNumber(idx + 1)}*\n\n📋 វិញ្ញាសា៖ ${q.subject}\n✨ ផ្តល់ជូនដោយ Master Quiz KH`;
           const res = await sendQuestionImage(tgConfig, blob, caption);
           return res.ok;
         }
@@ -234,7 +239,7 @@ const CreateSection: React.FC<CreateSectionProps> = ({
         
         let text = `📌 *${labelQ}៖* ${q.question}\n\n`;
         if (q.type === 'mcq' && q.options) {
-          q.options.forEach((o, i) => { text += `${KHMER_PREFIXES[i]}. ${o}${includeAnswer && i === q.correct ? ' ✅' : ''}\n`; });
+          q.options.forEach((o, i) => { text += `${PREFIXES[i]}. ${o}${includeAnswer && i === q.correct ? ' ✅' : ''}\n`; });
         } else {
           text += `✅ *${labelA}៖* ${q.answer}\n`;
         }
@@ -307,11 +312,11 @@ const CreateSection: React.FC<CreateSectionProps> = ({
           current = { type: 'mcq', subject: subject.trim(), question: qm[1].trim(), options: [], correct: 0, isActive: true };
           return;
         }
-        const om = t.match(/^[កខគឃ]\.\s*(.*)/);
+        const om = t.match(/^[កខគឃa-dA-D]\.\s*(.*)/);
         if (om && current) {
-          let txt = om[1].replace('(ចម្លើយត្រឹមត្រូវ)', '').trim();
+          let txt = om[1].replace('(ចម្លើយត្រឹមត្រូវ)', '').replace('(T)', '').trim();
           current.options.push(txt);
-          if (om[1].includes('(ចម្លើយត្រឹមត្រូវ)')) current.correct = current.options.length - 1;
+          if (om[1].includes('(ចម្លើយត្រឹមត្រូវ)') || om[1].includes('(T)')) current.correct = current.options.length - 1;
         }
       });
       if (current && current.options?.length >= 2) parsed.push(current);
@@ -443,11 +448,11 @@ const CreateSection: React.FC<CreateSectionProps> = ({
           {activeQuestionsInView.map((q, i) => (
             <div key={i} style={{ marginBottom: '10mm', pageBreakInside: 'avoid' }}>
               <p style={{ fontWeight: 'bold', fontSize: '13pt', lineHeight: 1.5 }}>
-                {q.type === 'explanation' ? `ពាក្យទី ${toKhmerNumeral(i + 1)}៖ ` : `សំណួរ ${toKhmerNumeral(i + 1)}៖ `}{q.question}
+                {q.type === 'explanation' ? `ពាក្យទី ${formatNumber(i + 1)}៖ ` : `សំណួរ ${formatNumber(i + 1)}៖ `}{q.question}
               </p>
               {q.type === 'mcq' ? (
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4mm', marginTop: '3mm', paddingLeft: '6mm' }}>
-                  {q.options?.map((o, oi) => <p key={oi} style={{ margin: 0, color: (includeAnswer && oi === q.correct) ? '#059669' : '#000', fontWeight: (includeAnswer && oi === q.correct) ? 'bold' : 'normal' }}>{KHMER_PREFIXES[oi]}. {o}{(includeAnswer && oi === q.correct) ? ' ✓' : ''}</p>)}
+                  {q.options?.map((o, oi) => <p key={oi} style={{ margin: 0, color: (includeAnswer && oi === q.correct) ? '#059669' : '#000', fontWeight: (includeAnswer && oi === q.correct) ? 'bold' : 'normal' }}>{PREFIXES[oi]}. {o}{(includeAnswer && oi === q.correct) ? ' ✓' : ''}</p>)}
                 </div>
               ) : (
                 <p style={{ fontStyle: 'italic', opacity: 0.6, marginTop: '2mm', paddingLeft: '6mm' }}>
@@ -508,7 +513,7 @@ const CreateSection: React.FC<CreateSectionProps> = ({
                       width: '75px', height: '75px', borderRadius: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '28pt',
                       background: (includeAnswer && i === previewQ.correct) ? '#10b981' : (selectedTemplate === 'classic' ? '#800000' : '#fff'),
                       color: (includeAnswer && i === previewQ.correct) ? '#fff' : (selectedTemplate === 'classic' ? '#fff' : '#800000')
-                    }}>{KHMER_PREFIXES[i]}</span>
+                    }}>{PREFIXES[i]}</span>
                     <span style={{ flex: 1, lineHeight: 1.4 }}>{o}</span>
                     {includeAnswer && i === previewQ.correct && <span style={{ fontSize: '35pt', marginLeft: '15px' }}>✅</span>}
                   </div>
@@ -581,7 +586,7 @@ const CreateSection: React.FC<CreateSectionProps> = ({
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {options.map((opt, i) => (
                       <div key={i} className="flex items-center gap-3 bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
-                        <span className="font-black text-[#800000] w-10 h-10 flex items-center justify-center bg-red-50 rounded-xl">{KHMER_PREFIXES[i]}</span>
+                        <span className="font-black text-[#800000] w-10 h-10 flex items-center justify-center bg-red-50 rounded-xl">{PREFIXES[i]}</span>
                         <input type="text" value={opt} onChange={(e) => { const n = [...options]; n[i] = e.target.value; setOptions(n); }} className="flex-1 outline-none small-kh text-sm text-blue-600 font-medium" placeholder={`ចម្លើយទី ${i+1}`} />
                         <button onClick={() => setCorrect(i)} className={`w-8 h-8 rounded-lg flex justify-center items-center border-2 transition-all ${correct === i ? 'bg-green-500 border-green-500 text-white' : 'border-gray-100 text-gray-200'}`}>✓</button>
                       </div>
@@ -651,7 +656,7 @@ const CreateSection: React.FC<CreateSectionProps> = ({
                   {filteredGlobalQuestions.map((q, idx) => (
                     <div key={idx} className="p-6 bg-white rounded-[2rem] border border-gray-100 shadow-sm flex flex-col md:flex-row gap-6 items-center group hover:border-[#800000]/20 transition-all">
                       <div className="flex flex-col items-center gap-1 shrink-0">
-                         <span className="w-12 h-12 bg-gray-50 rounded-2xl shadow-inner flex items-center justify-center font-black text-[#800000] border border-gray-200 group-hover:bg-red-50 transition-colors">{toKhmerNumeral(idx + 1)}</span>
+                         <span className="w-12 h-12 bg-gray-50 rounded-2xl shadow-inner flex items-center justify-center font-black text-[#800000] border border-gray-200 group-hover:bg-red-50 transition-colors">{formatNumber(idx + 1)}</span>
                          <span className="text-[8px] font-black uppercase text-indigo-400">{q.type === 'explanation' ? 'DICT' : q.type.toUpperCase()}</span>
                       </div>
                       <div className="flex-1">
@@ -1145,7 +1150,7 @@ const CreateSection: React.FC<CreateSectionProps> = ({
               {activeQuestionsInView.map((q, idx) => (
                 <div key={idx} className="p-6 bg-gray-50 rounded-[2rem] border border-gray-100 flex flex-col md:flex-row gap-6 items-center">
                   <div className="flex items-center gap-3 shrink-0">
-                    <span className="w-12 h-12 bg-white rounded-2xl shadow-inner flex items-center justify-center font-black text-[#800000] border border-gray-200">{toKhmerNumeral(idx + 1)}</span>
+                    <span className="w-12 h-12 bg-white rounded-2xl shadow-inner flex items-center justify-center font-black text-[#800000] border border-gray-200">{formatNumber(idx + 1)}</span>
                   </div>
                   <p className="flex-1 heading-kh text-sm text-indigo-950 text-justify leading-relaxed">{q.question}</p>
                   <div className="flex gap-2 shrink-0">
