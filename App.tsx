@@ -324,7 +324,7 @@ const App: React.FC = () => {
                 subject={activeQuiz.subject} 
                 partIndex={activeQuiz.partIndex} 
                 type={activeQuiz.type} 
-                allSubjectQuestions={activeQuiz.customQuestions || quizData.filter(q => q.subject === activeQuiz.subject && q.type === activeQuiz.type)} 
+                allSubjectQuestions={activeQuiz.customQuestions || quizData.filter(q => q.subject === activeQuiz.subject && q.type === activeQuiz.type && q.isActive !== false)} 
                 onExit={() => setActiveQuiz(null)} 
                 onStartNextPart={handleStartNextPart}
               />

@@ -144,7 +144,13 @@ const PlaySection: React.FC<PlaySectionProps> = ({ username, quizData, notificat
 
     if (filteredQuestions.length === 0) return alert("មិនមានសំណួរសម្រាប់មុខវិជ្ជាដែលបានជ្រើសរើសឡើយ!");
     
-    const shuffled = [...filteredQuestions].sort(() => Math.random() - 0.5);
+    // Fisher-Yates shuffle for unbiased randomization
+    const shuffled = [...filteredQuestions];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    
     const selectedQuestions = shuffled.slice(0, mixedCount);
     
     onStartQuiz("វិញ្ញាសាចម្រុះ", 0, activeType, selectedQuestions, true);

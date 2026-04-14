@@ -37,8 +37,16 @@ const QuizGame: React.FC<QuizGameProps> = ({ subject, partIndex, type, allSubjec
     return () => { correctAudioRef.current?.pause(); wrongAudioRef.current?.pause(); };
   }, []);
 
-  // Use a ref to store shuffled questions for the session to avoid re-shuffling during review
+  const [state, setState] = useState<QuizState>({
+    currentQuestionIndex: 0, score: 0, isFinished: false, selectedAnswer: null, userInput: '', showCorrect: false, userAnswers: [], isReviewing: false, shuffleKey: Date.now()
+  });
+
+  // Use a stable memo to store shuffled questions for the session.
+  // We only re-shuffle when the part, type, or shuffleKey (retry) changes.
+  // We depend on allSubjectQuestions.length > 0 to ensure we have data before shuffling.
   const partQuestions = useMemo(() => {
+    if (allSubjectQuestions.length === 0) return [];
+
     const start = partIndex * 10;
     const subset: Question[] = allSubjectQuestions.slice(start, start + 10);
     
@@ -47,7 +55,7 @@ const QuizGame: React.FC<QuizGameProps> = ({ subject, partIndex, type, allSubjec
 
     if (type === 'mcq') {
       return shuffledQuestions.map((q: Question) => {
-        if (!q.options) return q;
+        if (!q.options || q.options.length === 0) return q;
         
         const opts = q.options.map((opt, idx) => ({ 
           text: opt, 
@@ -65,11 +73,7 @@ const QuizGame: React.FC<QuizGameProps> = ({ subject, partIndex, type, allSubjec
       });
     }
     return shuffledQuestions;
-  }, [allSubjectQuestions, partIndex, type]);
-
-  const [state, setState] = useState<QuizState>({
-    currentQuestionIndex: 0, score: 0, isFinished: false, selectedAnswer: null, userInput: '', showCorrect: false, userAnswers: [], isReviewing: false
-  });
+  }, [partIndex, type, state.shuffleKey, allSubjectQuestions.length > 0]);
 
   const handleMCQSelect = (idx: number) => {
     if (state.selectedAnswer !== null || state.isFinished) return;
@@ -107,10 +111,19 @@ const QuizGame: React.FC<QuizGameProps> = ({ subject, partIndex, type, allSubjec
       onStartNextPart(partIndex + 1);
       // Reset state for new quiz
       setState({
-        currentQuestionIndex: 0, score: 0, isFinished: false, selectedAnswer: null, userInput: '', showCorrect: false, userAnswers: [], isReviewing: false
+        currentQuestionIndex: 0, score: 0, isFinished: false, selectedAnswer: null, userInput: '', showCorrect: false, userAnswers: [], isReviewing: false, shuffleKey: Date.now()
       });
     }
   };
+
+  if (allSubjectQuestions.length === 0) {
+    return (
+      <div className="card-white-elegant p-12 flex flex-col items-center justify-center min-h-[400px] gap-4">
+        <div className="w-12 h-12 border-4 border-indigo-900 border-t-transparent rounded-full animate-spin"></div>
+        <p className="heading-kh text-indigo-950 font-bold">កំពុងរៀបចំសំណួរ...</p>
+      </div>
+    );
+  }
 
   // Review Answers Screen
   if (state.isReviewing) {
@@ -172,7 +185,7 @@ const QuizGame: React.FC<QuizGameProps> = ({ subject, partIndex, type, allSubjec
 
   const handleRetry = () => {
     setState({
-      currentQuestionIndex: 0, score: 0, isFinished: false, selectedAnswer: null, userInput: '', showCorrect: false, userAnswers: [], isReviewing: false
+      currentQuestionIndex: 0, score: 0, isFinished: false, selectedAnswer: null, userInput: '', showCorrect: false, userAnswers: [], isReviewing: false, shuffleKey: Date.now()
     });
   };
 

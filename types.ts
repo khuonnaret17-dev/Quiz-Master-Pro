@@ -28,6 +28,7 @@ export interface QuizState {
   showCorrect: boolean;
   userAnswers: (number | string | null)[];
   isReviewing?: boolean;
+  shuffleKey?: number;
 }
 
 export interface SelectedQuizInfo {
